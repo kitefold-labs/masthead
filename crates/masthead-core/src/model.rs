@@ -107,7 +107,7 @@ mod tests {
         for m in MetricId::ALL {
             assert_eq!(m.as_str().parse::<MetricId>().unwrap(), m);
             assert_eq!(m.to_string(), m.as_str());
-            assert!(!m.title().is_empty());
+            assert_ne!(m.title(), "");
         }
         let e = "x".parse::<MetricId>().unwrap_err();
         assert!(e.to_string().contains("\"x\""));

@@ -247,6 +247,6 @@ mod tests {
         let s = serde_json::to_string(&Detail::default()).unwrap();
         assert_eq!(s, r#"{"t":0}"#);
         let x: Describe = serde_json::from_str("{}").unwrap();
-        assert!(x.gpus.is_empty());
+        assert_eq!(x.gpus.len(), 0);
     }
 }

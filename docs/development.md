@@ -4,7 +4,7 @@
 
 | Tool | Version | Notes |
 |---|---|---|
-| Rust | 1.95 | Pinned in `rust-toolchain.toml`; rustup fetches it. |
+| Rust | 1.99 | Pinned in `rust-toolchain.toml`; rustup fetches it. |
 | just | any | Task runner; `just --list`. |
 | Build headers | | `pkg-config libxkbcommon-dev libwayland-dev libinput-dev libudev-dev libexpat1-dev libfontconfig-dev libfreetype-dev libegl-dev` (Debian/Ubuntu names), for libcosmic. |
 | dbus | | `dbus-run-session` for the soak test. |

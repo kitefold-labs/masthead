@@ -395,13 +395,13 @@ mod tests {
         assert_eq!(temp.len(), 2);
         let mem = rows("mem", &Detail { mem: Some(MemDetail::default()), ..Detail::default() }, u);
         assert_eq!(mem[3], ("Swap".into(), "none".into()));
-        assert!(rows("x", &d, u).is_empty());
+        assert_eq!(rows("x", &d, u).len(), 0);
     }
 
     #[test]
     fn scales() {
         assert_eq!(series("net"), &["net.rx", "net.tx"]);
-        assert!(series("nope").is_empty());
+        assert_eq!(series("nope").len(), 0);
         assert!((nice_max(&[vec![0.0, 180.0, f64::NAN]]) - 200.0).abs() < 1e-9);
         assert!((nice_max(&[vec![]]) - 1.0).abs() < 1e-9);
         assert!((nice_max(&[vec![9.9e6]]) - 1e7).abs() < 1e-3);

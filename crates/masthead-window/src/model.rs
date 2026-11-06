@@ -356,7 +356,7 @@ mod tests {
         assert!(series_value(&d, "battery").is_nan());
         assert!(series_value(&d, "bogus").is_nan());
         for m in MetricId::ALL {
-            assert!(!series_for(m).is_empty());
+            assert_ne!(series_for(m).len(), 0);
         }
         assert_eq!(series_for(MetricId::Net), ["net.rx", "net.tx"]);
     }

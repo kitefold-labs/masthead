@@ -728,7 +728,7 @@ mod tests {
         assert_eq!(all.sensors.as_ref().unwrap().len(), 1);
         assert!(all.processes.is_some());
         let cpu = s.detail(Some(MetricId::Cpu), &cfg, false, 0);
-        assert!(cpu.cpu.unwrap().top.is_empty());
+        assert_eq!(cpu.cpu.unwrap().top, [] as [masthead_api::detail::ProcDetail; 0]);
         let desc = s.describe("0.0.0");
         assert_eq!(desc.mem_total, 1_073_741_824);
         assert_eq!(desc.metrics, ["cpu", "mem", "net", "temp"]);

@@ -216,7 +216,7 @@ mod tests {
         match Nvml::load() {
             Ok(n) => {
                 for (i, d) in n.devices.iter().enumerate() {
-                    assert!(!d.name.is_empty());
+                    assert_ne!(d.name, "");
                     assert_eq!(n.find(d.domain, d.bus, d.device), Some(i));
                     let s = n.sample(i);
                     assert!(s.util.is_some_and(|u| (0.0..=100.0).contains(&u)));
@@ -225,7 +225,7 @@ mod tests {
                 assert_eq!(n.sample(usize::MAX).util, None);
                 assert!(format!("{n:?}").contains("Nvml"));
             }
-            Err(e) => assert!(!e.is_empty()),
+            Err(e) => assert_ne!(e, ""),
         }
     }
 }

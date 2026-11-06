@@ -286,7 +286,7 @@ mod tests {
         std::fs::write(&p, "garbage =").unwrap();
         assert!(Config::load(&p).is_err());
         let e = Config::load(d.path()).unwrap_err();
-        assert!(!e.to_string().is_empty());
+        assert_ne!(e.to_string(), "");
     }
 
     #[test]

@@ -178,6 +178,6 @@ mod tests {
         assert_eq!(top_by_rss(second, 0).len(), 0);
         let u = parse_passwd("root:x:0:0:root:/root:/bin/bash\nnkoenig:x:1000:1000::/home/n:/bin/bash\nbad\n");
         assert_eq!(u.get(&1000).map(String::as_str), Some("nkoenig"));
-        assert!(!t.user_name(0).is_empty());
+        assert_ne!(t.user_name(0), "");
     }
 }
