@@ -51,7 +51,7 @@ per state:
 
 The COSMIC applet is over the resting CPU budget. Its cost is libcosmic's: an
 empty libcosmic applet starts 38 threads and redraws in software. Trimming it
-is tracked as an open issue. The window renders with tiny-skia; the `wgpu`
+is tracked in [#1](https://github.com/kitefold-labs/masthead/issues/1). The window renders with tiny-skia; the `wgpu`
 feature cuts its CPU to about 0.35% but maps the GPU driver into the process
 (170–210 MB RSS on NVIDIA), so software rendering is the default.
 
