@@ -111,6 +111,23 @@ impl Devices {
     }
 }
 
+/// The detail window's color scheme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    /// Follow the desktop's light or dark preference.
+    #[default]
+    System,
+    Dark,
+    Light,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Window {
+    pub theme: Theme,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Tray {
@@ -140,6 +157,7 @@ pub struct Config {
     pub devices: Devices,
     pub tray: Tray,
     pub notifications: Notifications,
+    pub window: Window,
 }
 
 impl Default for Config {
@@ -151,6 +169,7 @@ impl Default for Config {
             devices: Devices::default(),
             tray: Tray::default(),
             notifications: Notifications::default(),
+            window: Window::default(),
         }
     }
 }
@@ -264,6 +283,15 @@ mod tests {
         assert!(Config::parse("[nope]\n").is_err());
         let e = Config::parse("[thresholds.cpu]\nwarn=99\ncrit=10\n").unwrap_err();
         assert!(e.to_string().contains("thresholds.cpu"));
+    }
+
+    #[test]
+    fn window_theme() {
+        assert_eq!(Config::default().window.theme, Theme::System);
+        let c = Config::parse("[window]\ntheme=\"light\"\n").unwrap();
+        assert_eq!(c.window.theme, Theme::Light);
+        assert_eq!(Config::parse(&c.to_toml()).unwrap().window.theme, Theme::Light);
+        assert!(Config::parse("[window]\ntheme=\"blue\"\n").is_err());
     }
 
     #[test]

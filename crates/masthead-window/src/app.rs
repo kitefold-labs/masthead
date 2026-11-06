@@ -16,7 +16,7 @@ use cosmic::{Application, ApplicationExt, Element};
 use masthead_api::PanelItem;
 use masthead_api::detail::{Describe, Detail};
 use masthead_core::MetricId;
-use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
+use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
 use masthead_core::thresholds::Threshold;
 use std::collections::{BTreeMap, HashMap};
 use tokio::sync::mpsc::UnboundedSender;
@@ -50,6 +50,7 @@ pub enum Message {
     TempSensor(usize),
     Virtual(bool),
     Tray(usize),
+    Theme(usize),
     Notify(bool),
     HoldInput(String),
     ApplyHold,
@@ -66,13 +67,18 @@ pub enum Message {
 #[derive(Debug)]
 pub struct Flags {
     pub page: Page,
+    /// The desktop's preference.
     pub dark: bool,
+    /// The theme setting, read from the config file before the first frame.
+    pub theme: Theme,
     pub requests: UnboundedSender<Req>,
 }
 
 pub struct App {
     core: Core,
     pub pal: Palette,
+    /// The desktop's light or dark preference; the theme setting can override it.
+    system_dark: bool,
     pub page: Page,
     pub range: Range,
     pub describe: Option<Describe>,
@@ -106,6 +112,15 @@ pub struct App {
     requests: UnboundedSender<Req>,
 }
 
+/// Dark or light, from the theme setting and the desktop's preference.
+pub fn effective_dark(theme: Theme, system_dark: bool) -> bool {
+    match theme {
+        Theme::System => system_dark,
+        Theme::Dark => true,
+        Theme::Light => false,
+    }
+}
+
 /// Bar metrics the thresholds editor offers.
 pub const THRESHOLD_METRICS: [MetricId; 4] = [MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Temp];
 
@@ -114,6 +129,8 @@ pub const MEM_OPTIONS: [&str; 2] = ["Binary (GiB)", "Decimal (GB)"];
 pub const NET_OPTIONS: [&str; 2] = ["Bytes (MB/s)", "Bits (Mb/s)"];
 pub const TEMP_OPTIONS: [&str; 2] = ["Celsius", "Fahrenheit"];
 pub const TRAY_OPTIONS: [&str; 3] = ["Only without a native bar", "Always", "Never"];
+pub const THEME_OPTIONS: [&str; 3] = ["Follow the system", "Dark", "Light"];
+pub const THEMES: [Theme; 3] = [Theme::System, Theme::Dark, Theme::Light];
 
 impl App {
     fn send(&self, r: Req) {
@@ -213,6 +230,22 @@ impl App {
         self.config = Some(c);
     }
 
+    /// Switches the palette if the theme setting or the desktop's preference
+    /// now calls for the other one.
+    fn apply_theme(&mut self) -> Task<Message> {
+        let theme = self.config.as_ref().map_or(Theme::System, |c| c.window.theme);
+        let dark = effective_dark(theme, self.system_dark);
+        if self.pal.dark == dark {
+            return Task::none();
+        }
+        self.pal = Palette::for_dark(dark);
+        self.chart_cache.clear();
+        for c in self.spark_cache.values() {
+            c.clear();
+        }
+        cosmic::command::set_theme(palette::cosmic_theme(&self.pal))
+    }
+
     /// Change the configuration locally and send it to the daemon.
     fn edit(&mut self, f: impl FnOnce(&mut Config)) {
         if let Some(c) = &mut self.config {
@@ -278,7 +311,8 @@ impl Application for App {
         core.window.content_container = false;
         let mut app = App {
             core,
-            pal: Palette::for_dark(flags.dark),
+            pal: Palette::for_dark(effective_dark(flags.theme, flags.dark)),
+            system_dark: flags.dark,
             page: flags.page,
             range: Range::default(),
             describe: None,
@@ -354,7 +388,10 @@ impl Application for App {
                     }
                     self.error = None;
                 }
-                Event::Config(c) => self.on_config(*c),
+                Event::Config(c) => {
+                    self.on_config(*c);
+                    return self.apply_theme();
+                }
                 Event::Panel(items) => self.panel = items,
                 Event::Detail(d) => self.on_detail(*d),
                 Event::History { generation, index, series } => {
@@ -372,14 +409,8 @@ impl Application for App {
                     }
                 }
                 Event::Dark(d) => {
-                    if self.pal.dark != d {
-                        self.pal = Palette::for_dark(d);
-                        self.chart_cache.clear();
-                        for c in self.spark_cache.values() {
-                            c.clear();
-                        }
-                        return cosmic::command::set_theme(palette::cosmic_theme(&self.pal));
-                    }
+                    self.system_dark = d;
+                    return self.apply_theme();
                 }
                 Event::Error(e) => self.error = Some(e),
             },
@@ -435,6 +466,10 @@ impl Application for App {
                 }
             }
             Message::Virtual(on) => self.edit(|c| c.devices.include_virtual_interfaces = on),
+            Message::Theme(i) => {
+                self.edit(|c| c.window.theme = THEMES[i.min(2)]);
+                return self.apply_theme();
+            }
             Message::Tray(i) => self.edit(|c| c.tray.mode = [TrayMode::Auto, TrayMode::Always, TrayMode::Never][i.min(2)]),
             Message::Notify(on) => self.edit(|c| c.notifications.enabled = on),
             Message::HoldInput(v) => self.hold = v,
@@ -522,6 +557,15 @@ pub fn parse_thresholds(drafts: &BTreeMap<MetricId, (String, String)>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn theme_setting_overrides_the_desktop() {
+        assert!(effective_dark(Theme::System, true));
+        assert!(!effective_dark(Theme::System, false));
+        assert!(effective_dark(Theme::Dark, false));
+        assert!(!effective_dark(Theme::Light, true));
+        assert_eq!(THEMES.len(), THEME_OPTIONS.len());
+    }
 
     #[test]
     fn thresholds_editor() {
