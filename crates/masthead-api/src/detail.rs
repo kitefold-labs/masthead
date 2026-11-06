@@ -232,7 +232,7 @@ pub struct ProcDetail {
     pub pid: u32,
     pub name: String,
     pub user: String,
-    /// Share of all CPU time, 0–100.
+    /// Percent of one core, as `top` shows it: 100 is one core busy.
     pub cpu: f64,
     pub rss: u64,
     pub threads: u32,

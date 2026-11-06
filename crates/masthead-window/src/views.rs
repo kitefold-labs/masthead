@@ -704,7 +704,11 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
         column![
             t("Processes", 21.0, BOLD, p.fg),
             t(
-                format!("{} of {matched} shown · sorted and filtered across the busiest {}", shown.len(), procs.len()),
+                format!(
+                    "{} of {matched} shown · sorted and filtered across the busiest {} · CPU: 100% is one core",
+                    shown.len(),
+                    procs.len()
+                ),
                 11.5,
                 MONO,
                 p.fg_muted
