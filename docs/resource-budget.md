@@ -38,6 +38,23 @@ Per-source cost of one sample (`cargo run --release -p masthead-probe --example 
 About 100 µs of reading per second. The rest of each tick is formatting, the
 D-Bus signal, and the runtime.
 
+Faces and the window, release builds under a headless GNOME Shell 50, 60 s
+per state:
+
+| Process | State | CPU, one core | RSS |
+|---|---|---|---|
+| `masthead-cosmic` | Idle | 0.12% | 25 MB |
+| `masthead-cosmic` | Popover open | 0.30% | 26.7 MB |
+| `masthead-window` | Settings page | 0.3% | 33 MB |
+| `masthead-window` | CPU page (chart, per-core grid, top processes) | 1.5–1.9% | 33 MB |
+| `masthead-window` | Processes page | 1.2% | 33 MB |
+
+The COSMIC applet is over the resting CPU budget. Its cost is libcosmic's: an
+empty libcosmic applet starts 38 threads and redraws in software. Trimming it
+is tracked as an open issue. The window renders with tiny-skia; the `wgpu`
+feature cuts its CPU to about 0.35% but maps the GPU driver into the process
+(170–210 MB RSS on NVIDIA), so software rendering is the default.
+
 ## NVIDIA
 
 NVIDIA's NVML library and the `libcuda` it loads add about 20 MB of resident

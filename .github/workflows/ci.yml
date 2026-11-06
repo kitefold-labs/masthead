@@ -85,7 +85,7 @@ jobs:
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
       - run: appstreamcli validate --no-net data/com.kitefoldlabs.Masthead.metainfo.xml
-      - run: desktop-file-validate data/com.kitefoldlabs.Masthead.desktop
+      - run: desktop-file-validate data/com.kitefoldlabs.Masthead.desktop crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop
       - run: cargo build --release -p masthead-daemon -p masthead-bar
       - run: cargo build --release -p masthead-window -p masthead-cosmic
       - run: scripts/package-deb.sh dist

@@ -35,6 +35,7 @@ files=(
     "$systemd_user/masthead.service"
     "$datadir/applications/com.kitefoldlabs.Masthead.desktop"
     "$datadir/applications/com.kitefoldlabs.Masthead.CosmicApplet.desktop"
+    "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg"
     "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg"
     "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg"
     "$datadir/metainfo/com.kitefoldlabs.Masthead.metainfo.xml"
@@ -72,6 +73,7 @@ put data/com.kitefoldlabs.Masthead.desktop "$datadir/applications/com.kitefoldla
 if [ -f crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop ]; then
     subst crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop >"$tmp/d"
     put "$tmp/d" "$datadir/applications/com.kitefoldlabs.Masthead.CosmicApplet.desktop"
+    put crates/masthead-cosmic/data/icons/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg"
 fi
 put data/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg"
 put data/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg"

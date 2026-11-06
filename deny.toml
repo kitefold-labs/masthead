@@ -6,6 +6,9 @@ targets = [{ triple = "x86_64-unknown-linux-gnu" }, { triple = "aarch64-unknown-
 [advisories]
 version = 2
 ignore = []
+# Flag unmaintained crates we depend on directly. libcosmic pulls in several
+# (rustybuzz, ttf-parser, zbus 5's zvariant) that only it can replace.
+unmaintained = "workspace"
 
 [licenses]
 version = 2
@@ -31,6 +34,70 @@ allow = [
 ]
 confidence-threshold = 0.9
 
+# libcosmic's COSMIC panel support links cosmic-panel-config and
+# xdg-shell-wrapper-config, which are GPL-3.0-only. Only masthead-cosmic
+# depends on them, so a masthead-cosmic binary is distributed under GPL-3.0
+# terms. The rest of Masthead does not link them.
+[[licenses.exceptions]]
+crate = "cosmic-panel-config"
+allow = ["GPL-3.0-only"]
+
+[[licenses.exceptions]]
+crate = "xdg-shell-wrapper-config"
+allow = ["GPL-3.0-only"]
+
+# Git dependencies that declare no license in their manifests. Each takes its
+# repository's top-level licence.
+[[licenses.clarify]]
+crate = "cosmic-panel-config"
+expression = "GPL-3.0-only"
+license-files = []
+
+[[licenses.clarify]]
+crate = "xdg-shell-wrapper-config"
+expression = "GPL-3.0-only"
+license-files = []
+
+[[licenses.clarify]]
+crate = "libcosmic"
+expression = "MPL-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "cosmic-config"
+expression = "MPL-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "cosmic-config-derive"
+expression = "MPL-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "cosmic-theme"
+expression = "MPL-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "iced_accessibility"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "dnd"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "mime@0.1.0"
+expression = "MIT"
+license-files = []
+
+[[licenses.clarify]]
+crate = "apply"
+expression = "Unlicense"
+license-files = []
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
@@ -39,4 +106,18 @@ allow-wildcard-paths = true
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-allow-git = ["https://github.com/pop-os/libcosmic"]
+# libcosmic and the forks it pins.
+allow-git = [
+    "https://github.com/pop-os/libcosmic",
+    "https://github.com/pop-os/cosmic-panel",
+    "https://github.com/pop-os/cosmic-protocols",
+    "https://github.com/pop-os/dbus-settings-bindings",
+    "https://github.com/pop-os/freedesktop-icons",
+    "https://github.com/pop-os/smithay-clipboard",
+    "https://github.com/pop-os/softbuffer",
+    "https://github.com/pop-os/window_clipboard.git",
+    "https://github.com/pop-os/winit.git",
+    "https://github.com/iced-rs/cryoglyph.git",
+    "https://github.com/jackpot51/rust-atomicwrites",
+    "https://github.com/wash2/accesskit",
+]

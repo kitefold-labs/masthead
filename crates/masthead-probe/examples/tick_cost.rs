@@ -1,5 +1,6 @@
 //! Time each bar-tier source on this machine: `cargo run --release -p masthead-probe --example tick_cost`.
 
+use masthead_probe::Roots;
 use masthead_probe::cpu::{CpuStat, StatSnapshot};
 use masthead_probe::disk::Disks;
 use masthead_probe::gpu::Gpus;
@@ -8,7 +9,6 @@ use masthead_probe::mem::Mem;
 use masthead_probe::net::{Iface, Net};
 use masthead_probe::source::Buf;
 use masthead_probe::system::System;
-use masthead_probe::Roots;
 use std::time::Instant;
 
 fn time(name: &str, n: u32, mut f: impl FnMut()) {

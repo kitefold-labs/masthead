@@ -9,7 +9,8 @@ zero disk writes.
 > The masthead is the top of the mast: where the halyard runs to, where the
 > wind indicator rides, and where the lookout stood.
 
-- **License:** [Apache License 2.0](LICENSE)
+- **License:** [Apache License 2.0](LICENSE). The COSMIC applet binary links
+  GPL-3.0 COSMIC panel code; see [its README](crates/masthead-cosmic/README.md#license).
 - **App ID:** `com.kitefoldlabs.Masthead`
 - **Status:** in development, version 0.1
 

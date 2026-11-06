@@ -1,13 +1,32 @@
 [package]
 name = "masthead-window"
+description = "Masthead's detail window: live charts, per-device detail, the process table and settings."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+# Depends on libcosmic from git, which crates.io cannot host.
+publish = false
 
 [dependencies]
+masthead-api.workspace = true
+masthead-core.workspace = true
+zbus.workspace = true
+serde_json.workspace = true
+futures-util.workspace = true
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+
+[dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic"
+rev = "7cd76ae3160cbd26ae89a4c01e64eda21f648c7f"
+default-features = false
+features = ["winit", "tokio", "wayland", "x11", "a11y"]
 
 [lints]
 workspace = true
+
+[features]
+# GPU rendering through wgpu instead of tiny-skia. Off by default: see README.
+wgpu = ["libcosmic/wgpu"]
