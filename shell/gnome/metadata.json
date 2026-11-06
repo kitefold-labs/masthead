@@ -1,0 +1,8 @@
+{
+  "uuid": "masthead@kitefoldlabs.com",
+  "name": "Masthead",
+  "description": "System stats in the top bar: values at a glance, detail on hover, graphs on click.\n\nThis extension only draws. The masthead-daemon package does the sampling and must be installed: https://github.com/kitefold-labs/masthead",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/kitefold-labs/masthead",
+  "version-name": "0.1.0"
+}

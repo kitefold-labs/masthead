@@ -81,7 +81,7 @@ if [ -f "shell/gnome/metadata.json" ]; then
     ext="$DESTDIR$datadir/gnome-shell/extensions/$ext_uuid"
     rm -rf "$ext"
     mkdir -p "$ext"
-    (cd shell/gnome && find . -type f \( -name '*.js' -o -name '*.json' -o -name '*.css' -o -name '*.svg' \) -print0 | while IFS= read -r -d '' f; do
+    (cd shell/gnome && for f in *.js metadata.json stylesheet.css icons/*.svg; do
         install -D -m 644 "$f" "$ext/$f"
     done)
 fi
