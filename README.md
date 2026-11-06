@@ -3,6 +3,8 @@
   SPDX-License-Identifier: Apache-2.0
 -->
 
+<img src="data/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg" width="96" alt="Masthead logo">
+
 # Masthead
 
 A Linux system monitor for the top bar. CPU, memory, GPU, network, disk,
