@@ -1,0 +1,19 @@
+[package]
+name = "masthead-core"
+description = "Masthead's shared logic: metric model, formatting, history rings, subscription tiers, thresholds and configuration."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+serde.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
