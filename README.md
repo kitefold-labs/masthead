@@ -11,7 +11,10 @@ click, at a resting cost of 0.06% of one CPU core and no disk writes.
   <img src="docs/images/hover-net.png" width="49%" alt="Network popover: rates, sparkline, interfaces">
 </p>
 
-![The Masthead window on the GPU page](docs/images/window-gpu.png)
+<p>
+  <img src="docs/images/window-gpu.png" width="49%" alt="The Masthead window on the GPU page">
+  <img src="docs/images/window-network.png" width="49%" alt="The Masthead window on the network page">
+</p>
 
 One small daemon samples `/proc` and `/sys` and publishes on D-Bus. Each
 desktop gets a thin native face that only draws:
