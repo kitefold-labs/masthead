@@ -16,14 +16,17 @@ pub enum Page {
     Metric(MetricId),
     Processes,
     Settings,
+    /// The disk map and cleanup, opened from the Disk page.
+    DiskUsage,
 }
 
 impl Page {
-    /// Parse a `Toggle`/`Show` argument: a metric id, `processes` or `settings`.
+    /// Parse a `Toggle`/`Show` argument: a metric id, `processes`, `settings` or `disk-usage`.
     pub fn parse(s: &str) -> Option<Self> {
         match s {
             "settings" => Some(Self::Settings),
             "processes" => Some(Self::Processes),
+            "disk-usage" => Some(Self::DiskUsage),
             _ => s.parse::<MetricId>().ok().map(Self::Metric),
         }
     }
@@ -33,6 +36,7 @@ impl Page {
             Self::Metric(m) => m.as_str(),
             Self::Processes => "processes",
             Self::Settings => "settings",
+            Self::DiskUsage => "disk-usage",
         }
     }
 }
@@ -329,7 +333,7 @@ mod tests {
         assert_eq!(Page::parse("settings"), Some(Page::Settings));
         assert_eq!(Page::parse("processes"), Some(Page::Processes));
         assert_eq!(Page::parse("nope"), None);
-        for p in [Page::Metric(MetricId::Net), Page::Processes, Page::Settings] {
+        for p in [Page::Metric(MetricId::Net), Page::Processes, Page::Settings, Page::DiskUsage] {
             assert_eq!(Page::parse(p.as_str()), Some(p));
         }
     }
