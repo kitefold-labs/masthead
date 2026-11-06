@@ -439,7 +439,7 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                 ]
                 .spacing(10);
                 col = col.push(facts);
-                col = col.push(eyebrow("Top processes · share of all cores", &p));
+                col = col.push(eyebrow("Top processes · CPU, 100% is one core", &p));
                 col = col.push(proc_rows(&c.top, false, &p, u));
             }
         }
