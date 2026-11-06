@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Logic shared by the daemon and every Masthead face. No I/O beyond reading
 //! and writing the config file.
 

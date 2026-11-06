@@ -1,5 +1,5 @@
+// Copyright 2026 Kitefold Labs
 // SPDX-License-Identifier: Apache-2.0
-// Copyright Kitefold Labs
 
 // The extension's only link to the system: the com.kitefoldlabs.Masthead1
 // D-Bus service run by masthead-daemon. Nothing here samples or polls.

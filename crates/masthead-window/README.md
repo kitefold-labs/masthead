@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # masthead-window
 
 The detail window: a sidebar of metrics with sparklines, a chart with 1 m /

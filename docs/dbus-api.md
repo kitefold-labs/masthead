@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # D-Bus API
 
 The daemon owns `com.kitefoldlabs.Masthead1` on the session bus and serves

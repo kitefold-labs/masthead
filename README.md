@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # Masthead
 
 A Linux system monitor for the top bar. CPU, memory, GPU, network, disk,

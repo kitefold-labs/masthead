@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! A steady-state sample of the bar-tier sources must not touch the heap.
 //!
 //! Runs against the real `/proc` and `/sys` of the machine running the tests.

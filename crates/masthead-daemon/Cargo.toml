@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "masthead-daemon"
 description = "Masthead's sampler: reads /proc and /sys once a second and publishes over the session bus."

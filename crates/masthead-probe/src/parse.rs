@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Byte-slice parsing helpers. None of these allocate.
 
 /// Split on ASCII whitespace, skipping empty fields.

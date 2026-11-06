@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Reload `config.toml` when it changes on disk.
 
 use rustix::fd::OwnedFd;

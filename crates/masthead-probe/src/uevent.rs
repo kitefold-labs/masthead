@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Kernel uevents over netlink, for hotplug of network interfaces, disks,
 //! sensors, batteries and GPUs without polling sysfs or linking libudev.
 

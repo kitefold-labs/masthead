@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `~/.config/masthead/config.toml`. Every field has a default, so an empty or
 //! partial file is valid. The daemon owns the file; faces change it through
 //! the daemon's `SetConfig` method.

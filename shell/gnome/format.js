@@ -1,5 +1,5 @@
+// Copyright 2026 Kitefold Labs
 // SPDX-License-Identifier: Apache-2.0
-// Copyright Kitefold Labs
 
 // Formatting for popover values. Mirrors crates/masthead-core/src/format.rs so
 // the popover reads like every other Masthead face. Bar labels arrive already

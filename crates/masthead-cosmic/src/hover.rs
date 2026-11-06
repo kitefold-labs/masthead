@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Hover intent for the popover, as a state machine with no UI types.
 //!
 //! The pointer must rest on an item for [`OPEN_DELAY`] before its popover

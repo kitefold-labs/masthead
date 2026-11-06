@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Everything on the session bus runs on one background thread with its own
 //! current-thread tokio runtime. The UI talks to it through two channels:
 //! [`Event`]s come in, [`Req`]s go out.

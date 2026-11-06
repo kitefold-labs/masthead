@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The COSMIC applet: bar items in the panel and the hover popover.
 
 use crate::dbus::{self, Cmd, Event};

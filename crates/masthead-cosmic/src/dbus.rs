@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The connection to masthead-daemon, as an iced subscription.
 //!
 //! The applet never samples anything. It holds the daemon's `panel` tier for

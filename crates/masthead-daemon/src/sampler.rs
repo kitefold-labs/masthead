@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! One sample of everything the current demand needs, and the bar items and
 //! detail payloads built from it.
 

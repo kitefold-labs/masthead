@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Window state that has nothing to do with drawing: pages, time ranges,
 //! chart series, statistics and the process table order. Kept free of UI
 //! types so it can be unit-tested.

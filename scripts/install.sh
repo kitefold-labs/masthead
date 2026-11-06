@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
 # Install Masthead from a built tree.
 #
 #   scripts/install.sh                     # into ~/.local for the current user

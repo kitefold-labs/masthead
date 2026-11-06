@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! JSON payloads carried by `Describe`, `GetDetail` and the `Detail` signal.
 //!
 //! Every field is optional or defaulted on the reading side, so a face built

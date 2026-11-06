@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # Contributing to Masthead
 
 Bug reports, hardware reports and pull requests are welcome at
@@ -21,6 +26,14 @@ find what it misses.
   it, no allocation in steady-state sampling, no disk writes.
 - New readings go into `masthead-probe` with a fixture test, then into the
   daemon's detail JSON, then into the faces.
+- Start every new file with the copyright header in its comment syntax
+  (`scripts/check-copyright.sh` checks it):
+
+  ```
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+  ```
+
 - Sign off your commits (`git commit -s`) to certify the
   [Developer Certificate of Origin](https://developercertificate.org/).
 

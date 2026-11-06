@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `StatusNotifierItem` fallback for desktops without a native Masthead face:
 //! Plasma, XFCE, Cinnamon, MATE, Budgie, and GNOME with only the `AppIndicator`
 //! extension.

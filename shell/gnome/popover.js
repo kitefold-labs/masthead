@@ -1,5 +1,5 @@
+// Copyright 2026 Kitefold Labs
 // SPDX-License-Identifier: Apache-2.0
-// Copyright Kitefold Labs
 
 // The hover card under a bar item. It is drawn by the shell because on
 // Wayland only the shell knows where a panel item is.

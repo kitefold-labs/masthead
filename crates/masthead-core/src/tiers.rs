@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Who is looking, and therefore what the daemon samples.
 //!
 //! Each face calls `Subscribe(tier)` and gets a handle. A subscription belongs

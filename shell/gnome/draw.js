@@ -1,5 +1,5 @@
+// Copyright 2026 Kitefold Labs
 // SPDX-License-Identifier: Apache-2.0
-// Copyright Kitefold Labs
 
 // Cairo drawing for sparklines and small bar charts.
 

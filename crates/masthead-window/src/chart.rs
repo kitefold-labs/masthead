@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Charts on an iced canvas. Each chart keeps its geometry in a
 //! [`canvas::Cache`] that is cleared only when a new sample arrives, so
 //! nothing is re-tessellated between samples.

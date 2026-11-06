@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Network throughput from `/proc/net/dev`, physical interfaces only by default.
 
 use crate::parse::{fields, lines, u64_of};

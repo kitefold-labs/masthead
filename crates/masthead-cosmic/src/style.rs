@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Halyard's palette for the popover, and the panel's status colors.
 
 use cosmic::iced::Color;

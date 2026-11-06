@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Disk throughput from `/proc/diskstats`, whole physical devices only.
 
 use crate::parse::{fields, lines, u64_of};

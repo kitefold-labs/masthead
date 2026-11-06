@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The `com.kitefoldlabs.Masthead1` D-Bus contract.
 //!
 //! The daemon implements it; every face uses [`MastheadProxy`]. Bar values

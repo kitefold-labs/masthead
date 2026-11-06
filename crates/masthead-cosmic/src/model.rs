@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! What the panel and the popover show, built from daemon data. No UI types,
 //! so it is unit-tested directly.
 

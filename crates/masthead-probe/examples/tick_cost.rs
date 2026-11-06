@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Time each bar-tier source on this machine: `cargo run --release -p masthead-probe --example tick_cost`.
 
 use masthead_probe::Roots;

@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! A file held open and re-read from offset 0 on every sample.
 
 use std::fs::File;

@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! A minimal NVML binding, loaded with `dlopen` only when an NVIDIA device is
 //! bound to the `nvidia` driver, awake, and its data is being shown.
 //!

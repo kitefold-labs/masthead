@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The process table, scanned only while a popover or the window is open.
 //!
 //! Reading `/proc/[pid]/stat` for every process costs a few milliseconds on a
