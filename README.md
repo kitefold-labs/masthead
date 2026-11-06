@@ -1,132 +1,100 @@
 # Masthead
 
-*by Kitefold Labs*
+A Linux system monitor for the top bar. CPU, memory, GPU, network, disk,
+temperature and battery as numbers at a glance, detail on hover, graphs on
+click, at a resting cost of 0.06% of one CPU core and no disk writes.
 
-A Linux system monitor that lives in the top bar. Numbers at a glance, detail
-on hover, graphs on click, and a resting cost under 0.1% of one CPU core with
-zero disk writes.
+![Masthead in the GNOME top bar](docs/images/bar.png)
 
-> The masthead is the top of the mast: where the halyard runs to, where the
-> wind indicator rides, and where the lookout stood.
+<p>
+  <img src="docs/images/hover-cpu.png" width="49%" alt="CPU popover: load, sparkline, per-thread bars, frequency, temperature, top process">
+  <img src="docs/images/hover-net.png" width="49%" alt="Network popover: rates, sparkline, interfaces">
+</p>
 
-- **License:** [Apache License 2.0](LICENSE). The COSMIC applet binary links
-  GPL-3.0 COSMIC panel code; see [its README](crates/masthead-cosmic/README.md#license).
-- **App ID:** `com.kitefoldlabs.Masthead`
-- **Status:** in development, version 0.1
+![The Masthead window on the GPU page](docs/images/window-gpu.png)
 
-## What it shows
+One small daemon samples `/proc` and `/sys` and publishes on D-Bus. Each
+desktop gets a thin native face that only draws:
 
-| Metric | Bar | Hover | Window |
-|---|---|---|---|
-| CPU | busy % | per-thread load, frequency, load average, package temperature, top processes | history, per-thread heat grid, process table |
-| Memory | used | used, cache, available, swap, top processes by memory | history, breakdown |
-| GPU | busiest discrete GPU % | every GPU: load, VRAM, power, temperature | history, per-device cards |
-| Network | ↓ ↑ rates | interfaces, link speed | history of both directions, totals |
-| Disk | read/write (off by default) | devices | history, free space per filesystem |
-| Temperature | CPU package | every sensor | temperatures, fans, voltages, power |
-| Battery | charge (laptops) | state, watts | history |
-
-Physical network interfaces only by default: `docker0`, `veth*` and `br-*`
-would double-count container traffic.
-
-## Where it runs
-
-| Desktop | How Masthead appears |
+| Desktop | Face |
 |---|---|
-| GNOME Shell 45–50 | Native extension: bar items, hover popovers, click for the window |
-| COSMIC | Native panel applet |
-| Hyprland, Sway, niri, river | `masthead-bar` for Waybar, Ironbar or eww |
-| i3, swaybar | `masthead-bar --format i3bar` |
-| KDE Plasma, XFCE, Cinnamon, MATE, Budgie | Tray icons with the value drawn in, tooltip on hover |
+| GNOME Shell 45–50 | Extension: bar items, hover popovers, click for the window |
+| COSMIC | Panel applet |
+| Waybar, Ironbar, eww, i3bar, swaybar | `masthead-bar` (JSON or i3bar protocol) |
+| KDE Plasma, XFCE, Cinnamon, MATE, Budgie | Tray items, shown automatically |
 
-On Wayland an application cannot place a popup next to a panel icon; only the
-shell can. That is why each desktop gets a small native face, all fed by one
-daemon. See [docs/architecture.md](docs/architecture.md).
+The window (`masthead-window`) is read-only: charts over 1 minute to 1 hour,
+per-device detail, a process table and settings.
 
 ## Install
 
-From source, for the current user (needs Rust 1.95 and the libcosmic build
-dependencies listed in [docs/development.md](docs/development.md)):
+Needs Rust (rustup installs the pinned 1.95), [just](https://github.com/casey/just),
+and the libcosmic build headers. On Debian or Ubuntu:
 
 ```sh
-just install          # or: cargo build --release && scripts/install.sh
+sudo apt install pkg-config libxkbcommon-dev libwayland-dev libinput-dev \
+    libudev-dev libexpat1-dev libfontconfig-dev libfreetype-dev libegl-dev
+just install        # release build, installed into ~/.local
 ```
 
-Then, per desktop:
+Then on GNOME, log out and back in and run
+`gnome-extensions enable masthead@kitefoldlabs.com`. For COSMIC, Waybar and
+i3 setup, see [docs/install.md](docs/install.md). `just deb` builds a Debian
+package that installs under `/usr`.
 
-- **GNOME:** log out and back in, then `gnome-extensions enable masthead@kitefoldlabs.com`.
-- **COSMIC:** Settings → Desktop → Panel → Configure panel applets → add *Masthead*.
-- **Waybar:** add a module per metric:
+## Run
 
-  ```json
-  "custom/masthead-cpu": {
-      "exec": "masthead-bar --metric cpu --no-labels",
-      "return-type": "json",
-      "on-click": "masthead-bar --toggle cpu"
-  }
-  ```
+Nothing to start by hand. The first face that connects starts the daemon
+through D-Bus activation, and systemd keeps it running. Click a bar item to
+open the window, or run it directly:
 
-- **i3 / sway:** `status_command masthead-bar --format i3bar`
-- **Tray desktops:** nothing to do; tray items appear when no native face is running.
+```sh
+masthead-window --metric gpu      # cpu, mem, gpu, net, disk, temp, battery, processes, settings
+masthead-bar --format plain       # live values in a terminal
+masthead-daemon --print           # detected hardware and one sample, as JSON
+```
 
-`just deb` builds a Debian package. More in [docs/install.md](docs/install.md).
+Settings live in `~/.config/masthead/config.toml`; see
+[docs/configuration.md](docs/configuration.md).
 
-## Resource use
+## Uninstall
 
-| | At rest (bar only) | Popover open | Window open |
+```sh
+gnome-extensions disable masthead@kitefoldlabs.com   # GNOME only
+just uninstall      # stops the daemon and removes everything from ~/.local
+```
+
+## Efficiency
+
+Measured on a Ryzen 9 9950X3D with an RTX 5090, release builds:
+
+| | CPU, one core | Memory | Disk writes |
 |---|---|---|---|
-| CPU, one core | ≤ 0.1% | ≤ 0.4% | ≤ 3% |
-| Memory | daemon ≤ 6 MB | + 0 | window ≤ 120 MB, freed on close |
-| Disk writes | 0 | 0 | only when settings change |
+| Daemon, bar only | 0.06% | 4.9 MB | 0 |
+| Daemon, NVIDIA GPU in the bar | 0.06% | 25 MB | 0 |
+| Detail window, open | 0.3–1.9% | 33 MB, freed on close | 0 |
+| COSMIC applet | 0.12% | 25 MB | 0 |
 
-On NVIDIA systems, NVIDIA's NVML library adds about 20 MB to the daemon while
-GPU data is shown. It is unloaded a minute after the GPU leaves the bar, and
-`[devices] nvml = false` turns it off. Measurements and method:
-[docs/resource-budget.md](docs/resource-budget.md). CI fails any change that
-breaks the resting budget.
+- One wakeup per second, with 50 ms timer slack. Nothing is sampled while no
+  face is subscribed or the screen is locked.
+- About 100 µs of reading per sample: files stay open and are re-read with
+  `pread`, and parsed in place. A test fails the build on any heap
+  allocation in steady-state sampling.
+- NVIDIA's NVML library is loaded only while GPU data is on screen and
+  unloaded a minute later; it is the 20 MB difference above.
+- CI runs the daemon for five minutes and fails if it exceeds 0.1% of a core
+  or 6 MB.
 
-## Configuration
+The COSMIC applet is over budget; see [#1](https://github.com/kitefold-labs/masthead/issues/1).
+Method and per-source timings: [docs/resource-budget.md](docs/resource-budget.md).
 
-`~/.config/masthead/config.toml`, edited from the window's Settings view or
-by hand (changes apply immediately). Every key is optional:
+## More
 
-```toml
-[bar]
-metrics = ["cpu", "mem", "gpu", "net", "temp"]
-style = "values"          # values | trend | compact
+[Architecture](docs/architecture.md) ·
+[D-Bus API](docs/dbus-api.md) ·
+[Development](docs/development.md) ·
+[GNOME extension](shell/gnome/README.md) ·
+[COSMIC applet](crates/masthead-cosmic/README.md)
 
-[units]
-memory = "binary"         # binary (GiB) | decimal (GB)
-network = "bytes"         # bytes | bits
-temperature = "celsius"   # celsius | fahrenheit
-
-[thresholds.cpu]
-warn = 85
-crit = 95
-
-[devices]
-gpu = "auto"              # or a PCI address: "0000:01:00.0"
-temperature = "auto"      # or "chip/label": "k10temp/Tctl"
-interfaces = []           # empty: every physical interface
-include_virtual_interfaces = false
-nvml = true
-
-[tray]
-mode = "auto"             # auto | always | never
-
-[notifications]
-enabled = false           # notify when a metric stays critical
-hold_seconds = 60
-```
-
-## Documents
-
-| Doc | What it covers |
-|---|---|
-| [docs/architecture.md](docs/architecture.md) | Daemon, tiers, faces, and why |
-| [docs/dbus-api.md](docs/dbus-api.md) | The `com.kitefoldlabs.Masthead1` interface |
-| [docs/resource-budget.md](docs/resource-budget.md) | Budgets, measurements, how CI enforces them |
-| [docs/install.md](docs/install.md) | Per-desktop setup and packaging |
-| [docs/development.md](docs/development.md) | Building, testing, quality gates |
-| [shell/gnome/README.md](shell/gnome/README.md) | The GNOME Shell extension |
-| [crates/masthead-cosmic/README.md](crates/masthead-cosmic/README.md) | The COSMIC applet |
+Apache License 2.0. The COSMIC applet binary links GPL-3.0 COSMIC panel code;
+see [its README](crates/masthead-cosmic/README.md#license).

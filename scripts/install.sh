@@ -47,8 +47,15 @@ for m in "${metrics[@]}"; do
 done
 
 if [ "${1:-}" = "--uninstall" ]; then
+    if [ "$USER_INSTALL" = 1 ] && [ -z "$DESTDIR" ]; then
+        systemctl --user stop masthead.service 2>/dev/null || true
+        pkill -x masthead-window 2>/dev/null || true
+    fi
     for f in "${files[@]}"; do rm -f "$DESTDIR$f"; done
     rm -rf "$DESTDIR$datadir/gnome-shell/extensions/$ext_uuid"
+    if [ "$USER_INSTALL" = 1 ] && [ -z "$DESTDIR" ]; then
+        systemctl --user daemon-reload 2>/dev/null || true
+    fi
     echo "Removed Masthead from $PREFIX."
     exit 0
 fi
