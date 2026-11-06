@@ -86,6 +86,16 @@ impl Service {
         serde_json::to_string(&*lock(&self.shared).config).unwrap_or_default()
     }
 
+    /// Exits once the reply is on its way. Tray items and the bus name go
+    /// with the process, so every face sees the daemon leave.
+    fn quit(&self) {
+        log::info!("quit requested");
+        tokio::spawn(async {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            std::process::exit(0);
+        });
+    }
+
     async fn set_config(&self, json: &str, #[zbus(signal_emitter)] emitter: SignalEmitter<'_>) -> fdo::Result<()> {
         let cfg: Config = serde_json::from_str(json).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         cfg.validate().map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;

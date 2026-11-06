@@ -95,6 +95,8 @@ fn main() {
         Mode::Open(p) => p,
         Mode::Service => Page::Metric(masthead_core::MetricId::Cpu),
     };
+    // Opening the window undoes Quit Masthead, so the daemon can start again.
+    masthead_core::quit::clear();
     let (mut events, requests, dark) = match bus::start(first) {
         Ok(Claim::Owned { events, requests, dark }) => (events, requests, dark),
         Ok(Claim::Forwarded) => return,

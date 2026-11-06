@@ -37,6 +37,17 @@ export function call(method, params = null, replyType = null) {
     });
 }
 
+/**
+ * Whether the user quit Masthead in this session. The window writes this
+ * marker and removes it when opened again; logging out clears it.
+ *
+ * @returns {boolean}
+ */
+export function quitRequested() {
+    const path = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'masthead', 'quit']);
+    return GLib.file_test(path, GLib.FileTest.EXISTS);
+}
+
 /** Whether a D-Bus service file for the daemon is installed. */
 function isActivatable() {
     return new Promise(resolve => {
@@ -120,6 +131,12 @@ export class MastheadClient {
         this._panelHandle = null;
         if (this._destroyed)
             return;
+        // Quit on purpose: no retries. The name watch sees the daemon when
+        // the window starts it again.
+        if (quitRequested()) {
+            this._cb.onQuit?.();
+            return;
+        }
         if (!await isActivatable()) {
             if (!this._destroyed)
                 this._cb.onMissing?.();

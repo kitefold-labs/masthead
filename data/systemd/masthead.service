@@ -6,6 +6,9 @@ Description=Masthead system monitor
 Documentation=https://github.com/kitefold-labs/masthead
 PartOf=graphical-session.target
 After=graphical-session.target
+# Quit Masthead in the window writes this; opening the window removes it.
+# A skipped start is not a failure, so nothing retries in a loop.
+ConditionPathExists=!%t/masthead/quit
 
 [Service]
 # Started by D-Bus activation the first time a bar face subscribes.

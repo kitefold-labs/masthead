@@ -127,6 +127,34 @@ fn panel_level(app: &App, m: MetricId) -> u32 {
 // Header
 // ----------------------------------------------------------------------------
 
+/// Quit Masthead, at the end of the header bar.
+pub fn quit_button<'a>(p: &Palette) -> El<'a> {
+    let p = *p;
+    button(row![icon(icons::handle("power"), p.fg_muted, 14.0), t("Quit", 12.5, MEDIUM, p.fg_muted)].spacing(6).align_y(Alignment::Center))
+        .on_press(Message::AskQuitAll)
+        .padding([4, 10])
+        .class(cosmic::theme::iced::Button::Custom(Box::new(move |_, status| button::Style {
+            background: matches!(status, button::Status::Hovered | button::Status::Pressed).then_some(Background::Color(p.surface3)),
+            text_color: p.fg,
+            border: Border { radius: 6.0.into(), ..Border::default() },
+            ..button::Style::default()
+        })))
+        .into()
+}
+
+/// Confirmation for Quit Masthead.
+pub fn quit_dialog<'a>() -> El<'a> {
+    cosmic::widget::dialog()
+        .title("Quit Masthead?")
+        .body(
+            "The bar items go away and monitoring stops. Open Masthead from your applications to start it again; \
+             it also starts at your next login.",
+        )
+        .primary_action(cosmic::widget::button::destructive("Quit Masthead").on_press(Message::QuitAll))
+        .secondary_action(cosmic::widget::button::standard("Cancel").on_press(Message::CancelQuitAll))
+        .into()
+}
+
 /// Logo and name for the start of the header bar.
 pub fn brand<'a>(p: &Palette) -> El<'a> {
     row![svg(icons::logo()).width(22).height(22), t("Masthead", 14.0, BOLD, p.fg)]
@@ -1029,7 +1057,17 @@ fn settings_page(app: &App) -> El<'_> {
         section("Units", units, p),
         section("Thresholds", thresholds, p),
         section("Devices", devices, p),
-        section("Tray and alerts", other, p)
+        section("Tray and alerts", other, p),
+        section(
+            "Masthead",
+            vec![setting(
+                "Quit Masthead",
+                "Removes the bar items and stops monitoring until you open Masthead again or log in",
+                small_button("Quit Masthead", Some(Message::AskQuitAll), p),
+                &p,
+            )],
+            p,
+        )
     ]
     .spacing(18)
     .max_width(760)

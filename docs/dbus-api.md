@@ -26,6 +26,7 @@ payloads at any time; anything else that changes gets a new interface name.
 | `ToggleWindow` | `(s metric) → ()` | Open the window on `metric` (or `settings`), switch it there, or close it if it already shows that metric. |
 | `GetConfig` | `() → s` | The configuration as JSON. |
 | `SetConfig` | `(s json) → ()` | Validate, write `config.toml` atomically, apply, and emit `ConfigChanged`. |
+| `Quit` | `() → ()` | Exit after replying. The window's Quit Masthead writes `$XDG_RUNTIME_DIR/masthead/quit` first; while it exists the daemon does not start, and opening the window removes it. |
 
 Metric ids: `cpu`, `mem`, `gpu`, `net`, `disk`, `temp`, `battery`.
 
