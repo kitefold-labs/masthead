@@ -251,8 +251,25 @@ impl Gpus {
         }
     }
 
-    /// Sample every GPU that is awake.
-    pub fn sample(&mut self) {
+    /// Unload NVML, returning its memory. The next NVIDIA sample loads it again.
+    pub fn release_nvml(&mut self) {
+        if matches!(self.nvml, NvmlState::Ready(_)) {
+            log::debug!("unloading NVML");
+            self.nvml = NvmlState::Unloaded;
+            for g in &mut self.list {
+                if let Backend::Nvidia { nvml_index } = &mut g.backend {
+                    *nvml_index = None;
+                }
+            }
+        }
+    }
+
+    /// Sample every GPU that is awake. With `use_nvml` false, NVIDIA devices
+    /// report only what sysfs has and NVML is never loaded.
+    pub fn sample(&mut self, use_nvml: bool) {
+        if !use_nvml {
+            self.release_nvml();
+        }
         let mut want_nvml = false;
         for g in &mut self.list {
             g.last.suspended = g.runtime_status.as_ref().and_then(|s| s.read_word(&mut self.buf)).is_some_and(|w| w == b"suspended");
@@ -262,7 +279,7 @@ impl Gpus {
         }
         // NVML is loaded only once an NVIDIA device is awake: nvmlInit itself
         // would wake a suspended one.
-        if want_nvml {
+        if want_nvml && use_nvml {
             self.ensure_nvml();
         }
         for g in &mut self.list {
@@ -367,7 +384,7 @@ mod tests {
         assert_eq!(list[1].pci, "0000:13:00.0");
         assert!(!list[1].discrete);
         let mut g = Gpus::from_list(list);
-        g.sample();
+        g.sample(true);
         assert!(g.list[0].last.suspended);
         assert!(!g.nvml_loaded());
         let a = &g.list[1].last;
@@ -377,6 +394,9 @@ mod tests {
         assert_eq!(a.power_w, Some(12.0));
         assert_eq!(g.primary(None).unwrap().card, "card1");
         assert_eq!(g.primary(Some("0000:01:00.0")).unwrap().card, "card0");
+        g.release_nvml();
+        g.sample(false);
+        assert_eq!(g.list[1].last.util, Some(7.0));
     }
 
     #[test]

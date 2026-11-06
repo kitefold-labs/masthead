@@ -16,11 +16,13 @@ pub struct Options {
     pub format: Format,
     pub metrics: Vec<String>,
     pub labels: bool,
+    /// Extra subscriptions held for benchmarking (`--tier`).
+    pub extra_tiers: Vec<String>,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Self { format: Format::Waybar, metrics: Vec::new(), labels: true }
+        Self { format: Format::Waybar, metrics: Vec::new(), labels: true, extra_tiers: Vec::new() }
     }
 }
 

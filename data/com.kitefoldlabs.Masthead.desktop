@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Masthead
+GenericName=System Monitor
+Comment=CPU, memory, GPU, network, disk and temperature history
+Exec=masthead-window
+Icon=com.kitefoldlabs.Masthead
+Terminal=false
+Categories=System;Monitor;
+Keywords=cpu;memory;gpu;network;disk;temperature;sensors;monitor;
+StartupNotify=true
+StartupWMClass=com.kitefoldlabs.Masthead

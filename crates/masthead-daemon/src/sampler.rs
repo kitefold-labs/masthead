@@ -27,6 +27,9 @@ use std::fmt::Write as _;
 use std::io;
 use std::time::Instant;
 
+/// How long GPU data can go unshown before NVML is unloaded.
+const GPU_RELEASE_AFTER: std::time::Duration = std::time::Duration::from_mins(1);
+
 /// Above this many processes the table is scanned every other second.
 const BUSY_PROCESS_COUNT: usize = 1000;
 
@@ -63,6 +66,8 @@ pub struct Sampler {
     levels: BTreeMap<MetricId, Level>,
     cpu_model: String,
     cores: u32,
+    /// When GPU data was last needed; NVML is unloaded a minute after.
+    gpu_wanted_at: Option<Instant>,
 }
 
 /// Values pushed into history each second.
@@ -151,6 +156,7 @@ impl Sampler {
             levels: BTreeMap::new(),
             cpu_model: cpu::model_name(&roots).unwrap_or_else(|| "CPU".into()),
             cores: 0,
+            gpu_wanted_at: None,
             stat: StatSnapshot::default(),
             prev: StatSnapshot::default(),
             roots,
@@ -245,7 +251,13 @@ impl Sampler {
                 s.read(&mut self.buf);
             }
         }
-        self.gpus.sample();
+        let gpu_wanted = cfg.bar.metrics.contains(&MetricId::Gpu) || demand.window || demand.hover.contains(&MetricId::Gpu);
+        if gpu_wanted {
+            self.gpu_wanted_at = Some(now);
+            self.gpus.sample(cfg.devices.nvml);
+        } else if self.gpu_wanted_at.is_none_or(|t| now.duration_since(t) > GPU_RELEASE_AFTER) {
+            self.gpus.release_nvml();
+        }
         self.battery = self.batteries.first().map(|b| b.sample(&mut self.buf));
         self.load = self.system.loadavg()?;
 

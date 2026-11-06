@@ -1,5 +1,9 @@
 //! A minimal NVML binding, loaded with `dlopen` only when an NVIDIA device is
-//! bound to the `nvidia` driver and awake.
+//! bound to the `nvidia` driver, awake, and its data is being shown.
+//!
+//! NVML and the `libcuda` it pulls in cost about 20 MB of resident memory,
+//! four times the rest of the daemon. Callers unload it when no face shows
+//! GPU data.
 //!
 //! Spawning `nvidia-smi` per sample, as several panel monitors do, costs a
 //! process creation and driver initialisation every second. NVML is the
@@ -197,6 +201,31 @@ impl Drop for Nvml {
         // SAFETY: called once, before the library is unloaded.
         unsafe {
             (self.shutdown)();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Runs only where the NVIDIA driver is installed; elsewhere loading fails
+    /// cleanly, which is itself the behaviour under test.
+    #[test]
+    fn loads_when_present() {
+        match Nvml::load() {
+            Ok(n) => {
+                for (i, d) in n.devices.iter().enumerate() {
+                    assert!(!d.name.is_empty());
+                    assert_eq!(n.find(d.domain, d.bus, d.device), Some(i));
+                    let s = n.sample(i);
+                    assert!(s.util.is_some_and(|u| (0.0..=100.0).contains(&u)));
+                    assert!(s.vram_total.is_some_and(|t| t > 0));
+                }
+                assert_eq!(n.sample(usize::MAX).util, None);
+                assert!(format!("{n:?}").contains("Nvml"));
+            }
+            Err(e) => assert!(!e.is_empty()),
         }
     }
 }

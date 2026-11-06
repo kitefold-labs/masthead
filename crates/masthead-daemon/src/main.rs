@@ -44,6 +44,10 @@ ENVIRONMENT:
 
 /// How long after startup to wait for a native face before showing tray items.
 const TRAY_GRACE: Duration = Duration::from_secs(4);
+/// How long after a native face was last subscribed before tray items may
+/// appear. The GNOME extension unsubscribes on lock and resubscribes after
+/// unlock; tray items must not flash up in between.
+const NATIVE_FACE_GRACE: Duration = Duration::from_secs(30);
 
 fn main() {
     log::init();
@@ -133,6 +137,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_panel: Vec<PanelItem> = Vec::new();
     let mut alerts: BTreeMap<MetricId, SustainedAlert> = BTreeMap::new();
     let mut tray: Option<tray::Tray> = None;
+    let mut native_face_seen: Option<Instant> = None;
 
     loop {
         let mut immediate = false;
@@ -175,25 +180,34 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
+        let locked = lock_state.locked();
         let (demand, cfg) = {
             let mut s = lock(&shared);
-            // Tray decision: auto shows items only when no face subscribed to the bar.
-            let want_tray = match s.config.tray.mode {
-                TrayMode::Never => false,
-                TrayMode::Always => true,
-                TrayMode::Auto => {
-                    watcher_present.load(std::sync::atomic::Ordering::Relaxed) && !s.subs.demand().panel && started.elapsed() >= TRAY_GRACE
-                }
-            };
+            let face_panel = s.subs.demand().panel;
+            if face_panel {
+                native_face_seen = Some(Instant::now());
+            }
+            // Auto shows tray items only when no face shows the bar.
+            let want_tray = !locked
+                && match s.config.tray.mode {
+                    TrayMode::Never => false,
+                    TrayMode::Always => true,
+                    TrayMode::Auto => {
+                        watcher_present.load(std::sync::atomic::Ordering::Relaxed)
+                            && !face_panel
+                            && started.elapsed() >= TRAY_GRACE
+                            && native_face_seen.is_none_or(|t| t.elapsed() >= NATIVE_FACE_GRACE)
+                    }
+                };
             s.tray_active = want_tray;
             (s.demand(), s.config.clone())
         };
-        if !demand.panel && tray.is_some() {
+        // Hide tray items as soon as a native face takes over, or on lock.
+        if !lock(&shared).tray_active && tray.is_some() {
             tray = None;
             ::log::info!("tray items hidden");
         }
 
-        let locked = lock_state.locked();
         if !demand.any() || locked {
             paused_since.get_or_insert_with(Instant::now);
             continue;
@@ -266,7 +280,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                 tray = None;
             }
             if let Some(t) = &mut tray {
-                t.update(&items).await
+                t.update(&items).await;
             } else {
                 let mem_total = sampler.describe("").mem_total;
                 match tray::Tray::start(&items, &conn, mem_total).await {

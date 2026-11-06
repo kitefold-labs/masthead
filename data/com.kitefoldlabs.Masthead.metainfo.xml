@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.kitefoldlabs.Masthead</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>Masthead</name>
+  <summary>System statistics in the top bar</summary>
+  <developer id="com.kitefoldlabs">
+    <name>Kitefold Labs</name>
+  </developer>
+  <description>
+    <p>
+      Masthead shows CPU, memory, GPU, network, disk and temperature readings in
+      your desktop's top bar. Hover a reading for detail; click it for a window
+      with history graphs, every sensor and the process table.
+    </p>
+    <p>
+      At rest it uses under 0.1% of one CPU core and writes nothing to disk.
+      It works on GNOME, COSMIC, Waybar-based desktops, and any desktop with a
+      system tray.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.kitefoldlabs.Masthead.desktop</launchable>
+  <url type="homepage">https://github.com/kitefold-labs/masthead</url>
+  <url type="bugtracker">https://github.com/kitefold-labs/masthead/issues</url>
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-06"/>
+  </releases>
+</component>

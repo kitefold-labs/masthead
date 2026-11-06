@@ -1,0 +1,19 @@
+[Unit]
+Description=Masthead system monitor
+Documentation=https://github.com/kitefold-labs/masthead
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+# Started by D-Bus activation the first time a bar face subscribes.
+Type=dbus
+BusName=com.kitefoldlabs.Masthead1
+ExecStart=@bindir@/masthead-daemon
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=yes
+# Backstops far above the budget (0.1% of a core, about 5 MB, 25 MB with
+# NVIDIA's NVML). A runaway daemon is throttled, not your session.
+CPUQuota=5%
+MemoryHigh=64M
+MemoryMax=128M

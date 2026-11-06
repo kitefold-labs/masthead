@@ -26,6 +26,8 @@ OPTIONS:
                       battery). Repeat for several. Default: the bar metrics
                       chosen in Masthead's settings.
     --no-labels       Leave out the metric name before each value.
+    --tier TIER       Also hold a hover:<metric> or window subscription.
+                      For benchmarks; normal bars never need it.
 
 WAYBAR:
     \"custom/masthead-cpu\": {
@@ -54,6 +56,11 @@ fn parse_args() -> Result<(Options, Option<String>), String> {
                 o.metrics.push(m);
             }
             "--no-labels" => o.labels = false,
+            "--tier" => {
+                let t = args.next().ok_or("--tier needs a tier")?;
+                t.parse::<masthead_core::tiers::Tier>()?;
+                o.extra_tiers.push(t);
+            }
             "--toggle" => toggle = Some(args.next().ok_or("--toggle needs a metric id")?),
             "--help" | "-h" => {
                 println!("{USAGE}");
@@ -107,6 +114,9 @@ async fn run(opts: Options) -> zbus::Result<()> {
     let mut owner = proxy.inner().receive_owner_changed().await?;
     // Subscribing D-Bus-activates the daemon if it is not running.
     proxy.subscribe("panel").await?;
+    for t in &opts.extra_tiers {
+        proxy.subscribe(t).await?;
+    }
     if opts.format == Format::I3bar {
         emit(&render::i3bar_header());
     }

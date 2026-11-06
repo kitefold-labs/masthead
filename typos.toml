@@ -1,0 +1,4 @@
+[default.extend-words]
+# Linux interface and driver names
+wlp = "wlp"
+enp = "enp"

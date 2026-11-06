@@ -76,7 +76,7 @@ pub struct Units {
     pub temperature: TemperatureUnits,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Devices {
     /// PCI address of the GPU the bar shows, or `auto` for the busiest discrete GPU.
@@ -87,6 +87,15 @@ pub struct Devices {
     pub interfaces: Vec<String>,
     /// Count virtual interfaces (docker0, veth*, br-*) too.
     pub include_virtual_interfaces: bool,
+    /// Read NVIDIA GPUs through NVIDIA's NVML library while GPU data is shown.
+    /// It costs about 20 MB of memory; without it NVIDIA GPUs show no load.
+    pub nvml: bool,
+}
+
+impl Default for Devices {
+    fn default() -> Self {
+        Self { gpu: "auto".into(), temperature: "auto".into(), interfaces: Vec::new(), include_virtual_interfaces: false, nvml: true }
+    }
 }
 
 impl Devices {
@@ -136,7 +145,7 @@ impl Default for Config {
             bar: Bar::default(),
             units: Units::default(),
             thresholds: default_thresholds(),
-            devices: Devices { gpu: "auto".into(), temperature: "auto".into(), ..Devices::default() },
+            devices: Devices::default(),
             tray: Tray::default(),
             notifications: Notifications::default(),
         }
