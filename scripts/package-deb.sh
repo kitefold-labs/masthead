@@ -22,7 +22,7 @@ Architecture: $arch
 Maintainer: Kitefold Labs <oss@kitefoldlabs.com>
 Installed-Size: $size
 Depends: libc6, libgcc-s1, libxkbcommon0, dbus-user-session | dbus-x11
-Recommends: gnome-shell (>= 45) | cosmic-panel | waybar
+Recommends: gnome-shell (>= 45) | cosmic-panel | waybar, pkexec
 Section: utils
 Priority: optional
 Homepage: https://github.com/kitefold-labs/masthead

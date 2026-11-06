@@ -246,6 +246,12 @@ pub fn filter_procs<'a>(procs: &'a [ProcDetail], filter: &str) -> Vec<&'a ProcDe
     procs.iter().filter(|p| f.is_empty() || p.name.to_lowercase().contains(&f) || p.user.to_lowercase().contains(&f)).collect()
 }
 
+/// Puts `procs` in the row order `order` that was on screen, so rows stay
+/// still under the pointer. Processes not in `order` go last.
+pub fn hold_order(procs: &mut [ProcDetail], order: &[u32]) {
+    procs.sort_by_key(|p| order.iter().position(|&pid| pid == p.pid).unwrap_or(usize::MAX));
+}
+
 /// Move `m` one place up (`-1`) or down (`+1`) in the bar order.
 pub fn move_metric(list: &mut [MetricId], m: MetricId, delta: i32) {
     let Some(i) = list.iter().position(|x| *x == m) else { return };
@@ -466,5 +472,13 @@ mod tests {
         assert_eq!(l[2], MetricId::Net);
         move_metric(&mut l, MetricId::Gpu, 1);
         assert_eq!(l.len(), 3);
+    }
+
+    #[test]
+    fn held_order_keeps_rows_still() {
+        let p = |pid, cpu| ProcDetail { pid, cpu, ..ProcDetail::default() };
+        let mut procs = vec![p(1, 9.0), p(2, 50.0), p(3, 1.0), p(4, 99.0)];
+        hold_order(&mut procs, &[3, 1, 2]);
+        assert_eq!(procs.iter().map(|p| p.pid).collect::<Vec<_>>(), [3, 1, 2, 4]);
     }
 }

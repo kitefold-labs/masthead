@@ -100,5 +100,7 @@ labels, so the daemon draws each value into the icon pixmap with a built-in
 first `ToggleWindow` and exiting when closed so its memory goes back to the
 system. It owns `com.kitefoldlabs.Masthead.Window`; the daemon calls its
 `Toggle(metric)`. It loads history with `History` and then follows the
-`Detail("all")` signal. It is read-only: it never signals or renices
-processes, so it needs no privileges.
+`Detail("all")` signal. The process table can end a process after a
+confirmation dialog. It runs `kill(1)` itself for the user's own processes
+and `pkexec kill` for anyone else's, so polkit asks for a password and the
+window never holds privileges. It never renices.

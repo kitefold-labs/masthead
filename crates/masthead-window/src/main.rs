@@ -11,6 +11,7 @@ mod app;
 mod bus;
 mod chart;
 mod icons;
+mod kill;
 mod model;
 mod palette;
 mod views;
