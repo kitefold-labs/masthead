@@ -152,7 +152,7 @@ fn main() {
         .default_text_size(14.0)
         .theme(palette::cosmic_theme(&pal))
         .transparent(true);
-    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, requests }) {
+    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, requests }) {
         eprintln!("masthead-window: {e}");
         std::process::exit(1);
     }
