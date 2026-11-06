@@ -149,6 +149,7 @@ export default class MastheadExtension extends Extension {
         this._iconsDir = this.dir.get_child('icons');
         this._items = new Map();
         this._menus = new Map();
+        this._destroyingItems = false;
         this._memTotal = null;
         this._config = null;
         this._style = 'values';
@@ -160,6 +161,9 @@ export default class MastheadExtension extends Extension {
         // Like panel menus, the popover lives in uiGroup above windows. It is
         // not chrome: it takes no input and adds nothing to the input region.
         this._popover = new Popover();
+        this._popover.connect('destroy', () => {
+            this._popover = null;
+        });
         Main.uiGroup.add_child(this._popover);
 
         this._client = new Client.MastheadClient({
@@ -173,16 +177,20 @@ export default class MastheadExtension extends Extension {
     }
 
     disable() {
-        this._clearTimers();
         this._closePopover();
-        this._client?.destroy();
-        this._client = null;
+        this._stopClient();
         this._destroyItems();
         this._popover?.destroy();
         this._popover = null;
         this._items = null;
         this._menus = null;
         this._config = null;
+    }
+
+    _stopClient() {
+        this._clearTimers();
+        this._client?.destroy();
+        this._client = null;
     }
 
     // --- daemon events -----------------------------------------------------
@@ -210,7 +218,7 @@ export default class MastheadExtension extends Extension {
     }
 
     _onPanel(raw) {
-        if (!this._items)
+        if (!this._items || !this._client)
             return;
         const items = raw.map(([id, value, text, level, summary]) => ({id, value, text, level, summary}));
         if (items.length === 0) {
@@ -266,6 +274,15 @@ export default class MastheadExtension extends Extension {
                     Client.toggleWindow(id);
             });
             item.connect('context-menu', () => this._openMenu(item));
+            item.connect('destroy', () => {
+                if (this._items?.get(id) === item)
+                    this._items.delete(id);
+                // Only the shell destroys an item behind our back, when it
+                // tears the panel down at shutdown. Stop listening so a late
+                // Panel signal does not rebuild into a disposed panel.
+                if (!this._destroyingItems)
+                    this._stopClient();
+            });
             Main.panel.addToStatusArea(`${ROLE_PREFIX}${id}`, item, i, 'right');
             this._items.set(id, item);
         });
@@ -275,8 +292,10 @@ export default class MastheadExtension extends Extension {
         for (const menu of this._menus?.values() ?? [])
             menu.destroy();
         this._menus?.clear();
-        for (const item of this._items?.values() ?? [])
+        this._destroyingItems = true;
+        for (const item of [...this._items?.values() ?? []])
             item.destroy();
+        this._destroyingItems = false;
         this._items?.clear();
     }
 

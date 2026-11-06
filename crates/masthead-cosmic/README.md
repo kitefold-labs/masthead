@@ -13,17 +13,12 @@ popover is open.
 ## Install
 
 ```sh
-cargo build --release -p masthead-cosmic
-install -Dm0755 target/release/masthead-cosmic ~/.local/bin/masthead-cosmic
-install -Dm0644 crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop \
-    ~/.local/share/applications/com.kitefoldlabs.Masthead.CosmicApplet.desktop
-install -Dm0644 crates/masthead-cosmic/data/icons/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg \
-    ~/.local/share/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg
+just install    # every Masthead binary and data file into ~/.local
 ```
 
-`masthead-daemon` must be installed too; the applet starts it through D-Bus
-activation. `~/.local/bin` has to be on the `PATH` the COSMIC session uses.
-System packages install the same files under `/usr`.
+The applet starts `masthead-daemon` through D-Bus activation. The installer
+writes absolute paths into the desktop entries, so `~/.local/bin` need not be
+on the session `PATH`. System packages install the same files under `/usr`.
 
 ## Add it to the panel
 

@@ -22,9 +22,9 @@ it through D-Bus activation, and systemd restarts it if it fails. The unit
 also caps it at 5% of a core and 128 MB, far above its budget, so a fault
 cannot hurt the session.
 
-`~/.local/bin` must be on the D-Bus activation `PATH`. The activation files
-use absolute paths, so this only matters for `on-click` commands in bar
-configs.
+The D-Bus activation files and desktop entries use absolute paths, so
+`~/.local/bin` only needs to be on your `PATH` for commands in bar configs
+such as Waybar's `exec` and `on-click`.
 
 ## Per desktop
 
