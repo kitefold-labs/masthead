@@ -35,13 +35,11 @@ fn source(name: &str) -> &'static str {
         "settings" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="11.5" r="1.5"/></svg>"##
         }
-        _ => {
-            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" stroke-width="2.5"><rect x="12" y="9.5" width="8" height="18" rx="4" stroke="#e9ebee"/><rect x="5.5" y="4.5" width="21" height="8" rx="4" stroke="#26d2ee"/></svg>"##
-        }
+        _ => unreachable!("no icon named {name}"),
     }
 }
 
-/// A handle for a metric's icon, or `processes`, `settings`, `mark`.
+/// A handle for a metric's icon, or `processes` or `settings`.
 pub fn handle(name: &str) -> svg::Handle {
     svg::Handle::from_memory(source(name).as_bytes())
 }
@@ -50,13 +48,19 @@ pub fn metric(m: MetricId) -> svg::Handle {
     handle(m.as_str())
 }
 
+/// The full-color app logo. Its dark tile reads on light and dark themes.
+pub fn logo() -> svg::Handle {
+    svg::Handle::from_memory(include_bytes!("../../../data/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg").as_slice())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn every_icon_is_svg() {
-        for n in ["cpu", "mem", "gpu", "net", "disk", "temp", "battery", "processes", "settings", "mark"] {
+        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings"]);
+        for n in names {
             assert!(source(n).starts_with("<svg"), "{n}");
         }
     }
