@@ -40,6 +40,11 @@ files=(
     "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg"
     "$datadir/metainfo/com.kitefoldlabs.Masthead.metainfo.xml"
 )
+# Metric icons, shared by the GNOME extension and the tray fallback.
+metrics=(cpu mem gpu net disk temp battery)
+for m in "${metrics[@]}"; do
+    files+=("$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-$m-symbolic.svg")
+done
 
 if [ "${1:-}" = "--uninstall" ]; then
     for f in "${files[@]}"; do rm -f "$DESTDIR$f"; done
@@ -79,6 +84,9 @@ fi
 put data/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.svg"
 put data/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-symbolic.svg"
 put data/com.kitefoldlabs.Masthead.metainfo.xml "$datadir/metainfo/com.kitefoldlabs.Masthead.metainfo.xml"
+for m in "${metrics[@]}"; do
+    put "shell/gnome/icons/masthead-$m-symbolic.svg" "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-$m-symbolic.svg"
+done
 
 if [ -f "shell/gnome/metadata.json" ]; then
     ext="$DESTDIR$datadir/gnome-shell/extensions/$ext_uuid"
