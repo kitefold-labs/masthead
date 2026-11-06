@@ -49,11 +49,14 @@ per state:
 | `masthead-window` | CPU page (chart, per-core grid, top processes) | 1.5–1.9% | 33 MB |
 | `masthead-window` | Processes page | 1.2% | 33 MB |
 
-The COSMIC applet is over the resting CPU budget. Its cost is libcosmic's: an
-empty libcosmic applet starts 38 threads and redraws in software. Trimming it
-is tracked in [#1](https://github.com/kitefold-labs/masthead/issues/1). The window renders with tiny-skia; the `wgpu`
-feature cuts its CPU to about 0.35% but maps the GPU driver into the process
-(170–210 MB RSS on NVIDIA), so software rendering is the default.
+The COSMIC applet is over the resting CPU budget. It starts 38 threads, which
+come from libcosmic and its dependencies rather than Masthead's code, and it
+redraws in software. Trimming it is tracked in
+[#1](https://github.com/kitefold-labs/masthead/issues/1).
+
+The window renders with tiny-skia. The `wgpu` feature cuts its CPU to about
+0.35% but maps the GPU driver into the process (170–210 MB RSS on NVIDIA), so
+software rendering is the default.
 
 ## NVIDIA
 
