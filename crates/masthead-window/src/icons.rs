@@ -35,6 +35,12 @@ fn source(name: &str) -> &'static str {
         "kill" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>"##
         }
+        "folder" => {
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linejoin="round"><path d="M2 4.5c0-.8.6-1.5 1.4-1.5h2.8l1.4 1.6h5c.8 0 1.4.6 1.4 1.4v5.9c0 .8-.6 1.4-1.4 1.4H3.4c-.8 0-1.4-.6-1.4-1.4z"/></svg>"##
+        }
+        "trash" => {
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.6c.1.8.7 1.4 1.5 1.4h3.6c.8 0 1.4-.6 1.5-1.4l.7-8.6"/></svg>"##
+        }
         "settings" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="11.5" r="1.5"/></svg>"##
         }
@@ -42,7 +48,7 @@ fn source(name: &str) -> &'static str {
     }
 }
 
-/// A handle for a metric's icon, or `processes`, `settings` or `kill`.
+/// A handle for a metric's icon, or `processes`, `settings`, `kill`, `folder` or `trash`.
 pub fn handle(name: &str) -> svg::Handle {
     svg::Handle::from_memory(source(name).as_bytes())
 }
@@ -62,7 +68,7 @@ mod tests {
 
     #[test]
     fn every_icon_is_svg() {
-        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings", "kill"]);
+        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings", "kill", "folder", "trash"]);
         for n in names {
             assert!(source(n).starts_with("<svg"), "{n}");
         }

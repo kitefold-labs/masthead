@@ -17,7 +17,8 @@ pub struct Proc {
     pub pid: u32,
     pub name: String,
     pub uid: u32,
-    /// Share of all CPU time over the last interval, 0–100.
+    /// CPU use over the last interval in percent of one core, as `top`
+    /// shows it: 100 is one core busy, up to 100 × `cpus`.
     pub cpu: f64,
     pub rss_bytes: u64,
     pub threads: u32,
@@ -67,8 +68,9 @@ impl ProcTable {
 
     /// Scan all user-space processes. `cpu_ticks_delta` is the change in total
     /// CPU time (all cores) since the previous scan, from `/proc/stat`; pass 0
-    /// on the first scan.
-    pub fn scan(&mut self, cpu_ticks_delta: u64) -> Vec<Proc> {
+    /// on the first scan. `cpus` is the number of logical CPUs.
+    pub fn scan(&mut self, cpu_ticks_delta: u64, cpus: usize) -> Vec<Proc> {
+        let cpus = cpus.max(1) as f64;
         let Ok(rd) = std::fs::read_dir(&self.proc_root) else { return Vec::new() };
         let mut next_prev = HashMap::with_capacity(self.prev.len().max(256));
         let mut out = Vec::with_capacity(self.prev.len().max(256));
@@ -84,7 +86,7 @@ impl ProcTable {
                 continue;
             }
             let cpu = match (self.prev.get(&pid), cpu_ticks_delta) {
-                (Some(&p), d) if d > 0 => st.ticks.saturating_sub(p) as f64 * 100.0 / d as f64,
+                (Some(&p), d) if d > 0 => st.ticks.saturating_sub(p) as f64 * 100.0 * cpus / d as f64,
                 _ => 0.0,
             };
             next_prev.insert(pid, st.ticks);
@@ -93,7 +95,7 @@ impl ProcTable {
                 pid,
                 name: String::from_utf8_lossy(st.comm).into_owned(),
                 uid,
-                cpu: cpu.min(100.0),
+                cpu: cpu.min(100.0 * cpus),
                 rss_bytes: st.rss_pages * self.page_size,
                 threads: st.threads,
             });
@@ -169,12 +171,13 @@ mod tests {
         }
         std::fs::create_dir_all(p.join("self")).unwrap();
         let mut t = ProcTable::new(&Roots::under(d.path()));
-        let first = t.scan(0);
+        let first = t.scan(0, 2);
         assert_eq!(first.len(), 1);
         assert!(first[0].cpu.abs() < f64::EPSILON);
         std::fs::write(p.join("100/stat"), "100 (proc100) S 1 0 0 0 0 0 0 0 0 0 60 0 0 0 20 0 2 0 0 0 10 0\n").unwrap();
-        let second = t.scan(100);
-        assert!((second[0].cpu - 50.0).abs() < 1e-9);
+        // 50 of 100 ticks across 2 CPUs is one core fully busy.
+        let second = t.scan(100, 2);
+        assert!((second[0].cpu - 100.0).abs() < 1e-9);
         assert_eq!(second[0].rss_bytes, 10 * rustix::param::page_size() as u64);
         let top = top_by_cpu(second.clone(), 5);
         assert_eq!(top.len(), 1);

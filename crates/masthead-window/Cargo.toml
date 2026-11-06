@@ -16,6 +16,7 @@ publish = false
 [dependencies]
 masthead-api.workspace = true
 masthead-core.workspace = true
+masthead-disk.workspace = true
 zbus.workspace = true
 serde_json.workspace = true
 futures-util.workspace = true

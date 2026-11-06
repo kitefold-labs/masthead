@@ -10,10 +10,12 @@
 mod app;
 mod bus;
 mod chart;
+mod disk;
 mod icons;
 mod kill;
 mod model;
 mod palette;
+mod treemap;
 mod views;
 
 use bus::{Claim, Command, Event};
@@ -25,7 +27,8 @@ const USAGE: &str = "masthead-window — Masthead's detail window
 
 USAGE:
     masthead-window [--metric ID]   Open on a metric (cpu, mem, gpu, net, disk,
-                                    temp, battery), processes or settings
+                                    temp, battery), processes, settings or
+                                    disk-usage
     masthead-window --service       Wait for a D-Bus Toggle or Show call, then open
                                     (what D-Bus activation runs)
     masthead-window --version
@@ -84,6 +87,11 @@ fn load_fonts() {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // The Disk usage page runs its scan in a child copy of this program.
+    if args.first().map(String::as_str) == Some(masthead_disk::child::ARG) {
+        let code = i32::from(masthead_disk::child::serve(args.get(1).map(Into::into)).is_err());
+        std::process::exit(code);
+    }
     let mode = match parse_args(&args) {
         Ok(Some(m)) => m,
         Ok(None) => return,
@@ -143,8 +151,8 @@ fn main() {
         .default_font(views::SANS)
         .default_text_size(14.0)
         .theme(palette::cosmic_theme(&pal))
-        .transparent(false);
-    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, requests }) {
+        .transparent(true);
+    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, requests }) {
         eprintln!("masthead-window: {e}");
         std::process::exit(1);
     }
