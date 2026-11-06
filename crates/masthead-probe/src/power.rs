@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! System batteries from `/sys/class/power_supply`.
 
 use crate::source::{Buf, Source};

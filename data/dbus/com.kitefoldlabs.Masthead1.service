@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [D-BUS Service]
 Name=com.kitefoldlabs.Masthead1
 Exec=@bindir@/masthead-daemon

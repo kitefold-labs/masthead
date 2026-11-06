@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Window state that has nothing to do with drawing: pages, time ranges,
 //! chart series, statistics and the process table order. Kept free of UI
 //! types so it can be unit-tested.
@@ -356,7 +359,7 @@ mod tests {
         assert!(series_value(&d, "battery").is_nan());
         assert!(series_value(&d, "bogus").is_nan());
         for m in MetricId::ALL {
-            assert!(!series_for(m).is_empty());
+            assert_ne!(series_for(m).len(), 0);
         }
         assert_eq!(series_for(MetricId::Net), ["net.rx", "net.tx"]);
     }

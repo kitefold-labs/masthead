@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Readers for the Linux kernel statistics Masthead displays.
 //!
 //! Every reader keeps its file descriptors open and re-reads them with

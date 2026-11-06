@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [workspace]
 resolver = "3"
 members = [
@@ -13,7 +16,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.99"
 license = "Apache-2.0"
 repository = "https://github.com/kitefold-labs/masthead"
 homepage = "https://github.com/kitefold-labs/masthead"

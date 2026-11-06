@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # masthead-cosmic
 
 Masthead for the COSMIC panel. Each bar item shows an icon and its value.

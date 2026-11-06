@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Fixed-size history: 15 minutes at 1 s and 24 hours at 1 min.
 //!
 //! The coarse ring keeps the minimum and maximum of each minute so a peak in a

@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Page layouts. Every color comes from the app's [`Palette`].
 
 use crate::app::{self, App, Message, THRESHOLD_METRICS};

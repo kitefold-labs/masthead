@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! GPUs: amdgpu through sysfs, NVIDIA through NVML, Intel best effort.
 //!
 //! Before any query the device's `power/runtime_status` is checked. On hybrid

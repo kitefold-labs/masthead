@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `masthead-bar`: bar values for status bars that read a command's output.
 //!
 //! It subscribes to the daemon's panel tier and prints one line each time a

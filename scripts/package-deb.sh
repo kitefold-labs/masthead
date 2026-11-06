@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
 # Build a .deb from release binaries: scripts/package-deb.sh [OUTDIR]
 set -euo pipefail
 

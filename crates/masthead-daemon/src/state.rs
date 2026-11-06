@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! State shared between the D-Bus service and the sampling loop.
 
 use masthead_api::PanelItem;

@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "masthead-probe"
 description = "Allocation-free readers for Linux /proc and /sys statistics, plus a lazily loaded NVML shim."

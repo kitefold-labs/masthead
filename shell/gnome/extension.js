@@ -1,5 +1,5 @@
+// Copyright 2026 Kitefold Labs
 // SPDX-License-Identifier: Apache-2.0
-// Copyright Kitefold Labs
 
 // Masthead for GNOME Shell. Presentation only: masthead-daemon samples the
 // system and publishes bar items over D-Bus; this extension draws them, shows

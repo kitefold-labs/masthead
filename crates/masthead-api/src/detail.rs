@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! JSON payloads carried by `Describe`, `GetDetail` and the `Detail` signal.
 //!
 //! Every field is optional or defaulted on the reading side, so a face built
@@ -247,6 +250,6 @@ mod tests {
         let s = serde_json::to_string(&Detail::default()).unwrap();
         assert_eq!(s, r#"{"t":0}"#);
         let x: Describe = serde_json::from_str("{}").unwrap();
-        assert!(x.gpus.is_empty());
+        assert_eq!(x.gpus.len(), 0);
     }
 }

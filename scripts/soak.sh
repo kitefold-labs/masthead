@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
 # Soak test for masthead-daemon's resource budget.
 #
 # Runs the daemon on a private session bus with one masthead-bar subscriber,

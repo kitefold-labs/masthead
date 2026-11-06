@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 # cargo-deny: run `cargo deny check` locally; CI runs every check.
 
 [graph]

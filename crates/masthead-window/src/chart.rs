@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Charts on an iced canvas. Each chart keeps its geometry in a
 //! [`canvas::Cache`] that is cleared only when a new sample arrives, so
 //! nothing is re-tessellated between samples.
@@ -210,7 +213,7 @@ mod tests {
         assert!((s[1][1].x - 100.0).abs() < 1e-3);
         assert!((s[1][1].y - 0.0).abs() < 1e-3);
         assert!((s[1][0].y - 25.0).abs() < 1e-3);
-        assert!(segments(&[], 60, 1.0, plot).is_empty());
+        assert_eq!(segments(&[], 60, 1.0, plot).len(), 0);
         let clamped = segments(&[9.0], 1, 1.0, plot);
         assert!((clamped[0][0].y).abs() < 1e-3);
         let zero = segments(&[1.0], 2, 0.0, plot);

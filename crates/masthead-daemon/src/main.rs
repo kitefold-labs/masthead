@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `masthead-daemon`: the only Masthead process that reads the kernel.
 //!
 //! One thread, one tokio current-thread runtime. Once a second it samples what

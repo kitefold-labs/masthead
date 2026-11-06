@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Bar values drawn into a 32×32 tray icon.
 //!
 //! Plasma and several other tray hosts ignore SNI text labels, so the daemon

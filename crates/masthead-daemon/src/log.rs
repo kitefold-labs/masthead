@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Logging to stderr. Under systemd (`JOURNAL_STREAM` set) each line carries a
 //! `<N>` priority prefix so journald records the right severity.
 

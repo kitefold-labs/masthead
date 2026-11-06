@@ -1,3 +1,8 @@
+<!--
+  Copyright 2026 Kitefold Labs
+  SPDX-License-Identifier: Apache-2.0
+-->
+
 # Masthead
 
 A Linux system monitor for the top bar. CPU, memory, GPU, network, disk,
@@ -31,7 +36,7 @@ per-device detail, a process table and settings.
 
 ## Install
 
-Needs Rust (rustup installs the pinned 1.95), [just](https://github.com/casey/just),
+Needs Rust (rustup installs the pinned 1.99), [just](https://github.com/casey/just),
 and the libcosmic build headers. On Debian or Ubuntu:
 
 ```sh

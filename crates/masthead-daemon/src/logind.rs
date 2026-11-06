@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Whether the graphical session is locked, from logind's `LockedHint`.
 //!
 //! The daemon runs as a systemd user service outside any session scope, so it

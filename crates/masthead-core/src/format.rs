@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Display formatting shared by every face, so the bar reads the same in
 //! GNOME, COSMIC, Waybar and the tray.
 

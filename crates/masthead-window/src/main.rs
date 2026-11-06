@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `masthead-window`: Masthead's detail window.
 //!
 //! A separate process, started when a bar item is clicked and exited when the

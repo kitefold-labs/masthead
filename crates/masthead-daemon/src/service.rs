@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The `com.kitefoldlabs.Masthead1` interface.
 
 use crate::state::{Request, Requests, SharedRef, lock};

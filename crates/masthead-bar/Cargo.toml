@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "masthead-bar"
 description = "Masthead for Waybar, Ironbar, eww, i3bar and swaybar: prints bar values as JSON lines when they change."

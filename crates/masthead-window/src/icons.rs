@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! The bar's 16 px stroke icons, as SVG. Colors come from the svg style tint.
 
 use cosmic::iced::widget::svg;

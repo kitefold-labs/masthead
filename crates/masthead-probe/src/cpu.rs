@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! CPU load from `/proc/stat` and per-core frequency from cpufreq.
 
 use crate::Roots;

@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Hover intent for the popover, as a state machine with no UI types.
 //!
 //! The pointer must rest on an item for [`OPEN_DELAY`] before its popover
@@ -151,7 +154,7 @@ mod tests {
         assert_eq!(h.enter("cpu"), vec![OpenTimer(1)]);
         assert_eq!(h.open_timer(1), vec![Open("cpu".into()), sub("cpu")]);
         assert_eq!(h.open(), Some("cpu"));
-        assert!(h.subscribed("cpu", 7).is_empty());
+        assert_eq!(h.subscribed("cpu", 7).len(), 0);
         assert_eq!(h.exit("cpu"), vec![CloseTimer(2)]);
         assert_eq!(h.close_timer(2), vec![Close, Unsubscribe(7)]);
         assert_eq!(h.open(), None);
@@ -191,7 +194,7 @@ mod tests {
         assert!(h.close_timer(2).is_empty(), "the close for cpu is stale");
         assert_eq!(h.exit("mem"), vec![CloseTimer(4)]);
         assert!(h.enter("mem").is_empty(), "back on the open item keeps it");
-        assert!(h.close_timer(4).is_empty());
+        assert_eq!(h.close_timer(4).len(), 0);
         assert_eq!(h.open(), Some("mem"));
     }
 
@@ -203,7 +206,7 @@ mod tests {
         h.open_timer(1);
         assert_eq!(h.click(), vec![Close]);
         assert_eq!(h.subscribed("cpu", 3), vec![Unsubscribe(3)], "reply after close");
-        assert!(h.open_timer(1).is_empty());
+        assert_eq!(h.open_timer(1).len(), 0);
         h.enter("gpu");
         h.open_timer(h.seq);
         h.subscribed("gpu", 4);
@@ -211,7 +214,7 @@ mod tests {
         h.subscribed("gpu", 5);
         assert_eq!(h.subscribed("gpu", 6), vec![Unsubscribe(6)], "only one handle held");
         assert_eq!(h.closed_externally(), vec![Unsubscribe(5)]);
-        assert!(h.click().is_empty());
-        assert!(Hover::default().daemon_restarted().is_empty());
+        assert_eq!(h.click().len(), 0);
+        assert_eq!(Hover::default().daemon_restarted().len(), 0);
     }
 }

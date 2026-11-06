@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Halyard's design tokens, and a libcosmic theme built from them so stock
 //! widgets (toggles, inputs, dropdowns, scrollbars, the header bar) match.
 

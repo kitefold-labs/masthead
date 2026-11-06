@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "masthead-core"
 description = "Masthead's shared logic: metric model, formatting, history rings, subscription tiers, thresholds and configuration."

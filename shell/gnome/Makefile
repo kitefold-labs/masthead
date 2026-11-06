@@ -1,4 +1,6 @@
+# Copyright 2026 Kitefold Labs
 # SPDX-License-Identifier: Apache-2.0
+
 UUID := masthead@kitefoldlabs.com
 SOURCES := client.js draw.js format.js popover.js
 ICONS := $(wildcard icons/*-symbolic.svg)

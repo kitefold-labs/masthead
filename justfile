@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 # Masthead developer tasks. `just --list` shows them all.
 
 default:

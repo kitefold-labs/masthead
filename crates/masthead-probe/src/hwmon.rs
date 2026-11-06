@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! Temperatures, fans, voltages and power from `/sys/class/hwmon`.
 
 use crate::source::{Buf, Source};

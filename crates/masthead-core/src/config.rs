@@ -1,3 +1,6 @@
+// Copyright 2026 Kitefold Labs
+// SPDX-License-Identifier: Apache-2.0
+
 //! `~/.config/masthead/config.toml`. Every field has a default, so an empty or
 //! partial file is valid. The daemon owns the file; faces change it through
 //! the daemon's `SetConfig` method.
@@ -286,7 +289,7 @@ mod tests {
         std::fs::write(&p, "garbage =").unwrap();
         assert!(Config::load(&p).is_err());
         let e = Config::load(d.path()).unwrap_err();
-        assert!(!e.to_string().is_empty());
+        assert_ne!(e.to_string(), "");
     }
 
     #[test]

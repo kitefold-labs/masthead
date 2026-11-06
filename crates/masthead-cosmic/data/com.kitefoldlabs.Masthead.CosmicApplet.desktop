@@ -1,3 +1,6 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+
 [Desktop Entry]
 Name=Masthead
 Comment=CPU, memory, GPU, network and temperature at a glance; hover for detail, click for graphs
