@@ -31,8 +31,10 @@ desktop gets a thin native face that only draws:
 | Waybar, Ironbar, eww, i3bar, swaybar | `masthead-bar` (JSON or i3bar protocol) |
 | KDE Plasma, XFCE, Cinnamon, MATE, Budgie | Tray items, shown automatically |
 
-The window (`masthead-window`) is read-only: charts over 1 minute to 1 hour,
-per-device detail, a process table and settings.
+The window (`masthead-window`) has charts over 1 minute to 1 hour,
+per-device detail, a process table that can end processes, and settings.
+Ending another user's process, such as root's, asks for your password through
+polkit.
 
 ## Install
 

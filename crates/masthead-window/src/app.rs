@@ -6,6 +6,7 @@
 
 use crate::bus::{Command, EVENTS, Event, Req};
 use crate::chart::Cache;
+use crate::kill::{self, Signal, Target};
 use crate::model::{self, Page, Range, Series, Sort, SortKey};
 use crate::palette::{self, Palette};
 use crate::views;
@@ -52,6 +53,13 @@ pub enum Message {
     Notify(bool),
     HoldInput(String),
     ApplyHold,
+    /// The kill button on a process row: ask to confirm.
+    AskKill(u32),
+    CancelKill,
+    Kill(Signal),
+    Killed(u32, Result<String, String>),
+    /// The pointer entered (`true`) or left the process rows.
+    HoldRows(bool),
 }
 
 /// Startup state handed to [`App::init`].
@@ -86,6 +94,15 @@ pub struct App {
     pub thresholds: BTreeMap<MetricId, (String, String)>,
     pub hold: String,
     pub error: Option<String>,
+    /// The process awaiting confirmation in the kill dialog.
+    pub kill: Option<Target>,
+    /// True while `kill` or the password dialog runs.
+    pub killing: bool,
+    /// What the last kill did, shown on the Processes page.
+    pub kill_result: Option<Result<String, String>>,
+    /// Process row order frozen while the pointer is over the rows, so a row
+    /// does not move under it between aiming and clicking.
+    pub held_order: Option<Vec<u32>>,
     requests: UnboundedSender<Req>,
 }
 
@@ -279,6 +296,10 @@ impl Application for App {
             thresholds: BTreeMap::new(),
             hold: String::new(),
             error: None,
+            kill: None,
+            killing: false,
+            kill_result: None,
+            held_order: None,
             requests: flags.requests,
         };
         app.send(Req::Start);
@@ -416,8 +437,47 @@ impl Application for App {
                 Ok(n) if (5..=3600).contains(&n) => self.edit(|c| c.notifications.hold_seconds = n),
                 _ => self.error = Some("Hold time must be a whole number of seconds from 5 to 3600.".into()),
             },
+            Message::AskKill(pid) => {
+                let found = self.procs.iter().find(|p| p.pid == pid).and_then(|p| Target::new(pid, p.name.clone(), p.user.clone()));
+                match found {
+                    Some(t) => self.kill = Some(t),
+                    None => self.kill_result = Some(Err(format!("Process {pid} had already exited."))),
+                }
+            }
+            Message::CancelKill => self.kill = None,
+            Message::Kill(signal) => {
+                if let Some(target) = self.kill.take() {
+                    self.killing = true;
+                    self.kill_result = None;
+                    let pid = target.pid;
+                    return cosmic::task::future(async move {
+                        let done = tokio::task::spawn_blocking(move || kill::send(&target, signal)).await;
+                        Message::Killed(pid, done.unwrap_or_else(|e| Err(format!("Could not end the process: {e}"))))
+                    });
+                }
+            }
+            Message::Killed(pid, result) => {
+                self.killing = false;
+                // Drop the row now rather than at the next scan. A process
+                // that ignored SIGTERM comes back with that scan.
+                if result.is_ok() {
+                    self.procs.retain(|p| p.pid != pid);
+                }
+                self.kill_result = Some(result);
+            }
+            Message::HoldRows(hold) => {
+                self.held_order = hold.then(|| {
+                    let mut procs = self.procs.clone();
+                    self.sort.apply(&mut procs);
+                    procs.iter().map(|p| p.pid).collect()
+                });
+            }
         }
         Task::none()
+    }
+
+    fn dialog(&self) -> Option<Element<'_, Message>> {
+        self.kill.as_ref().map(views::kill_dialog)
     }
 
     fn view(&self) -> Element<'_, Message> {

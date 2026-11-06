@@ -6,12 +6,13 @@
 use crate::app::{self, App, Message, THRESHOLD_METRICS};
 use crate::chart::{Chart, Meter, Spark};
 use crate::icons;
+use crate::kill::{Signal, Target};
 use crate::model::{self, Page, Range, SortKey};
 use crate::palette::Palette;
 use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
-use cosmic::iced::widget::{Space, button, canvas, column, container, keyed_column, row, scrollable, svg, text};
+use cosmic::iced::widget::{Space, button, canvas, column, container, keyed_column, mouse_area, row, scrollable, svg, text};
 use cosmic::iced::{Alignment, Background, Border, Color, Font, Length, Padding};
 use masthead_api::detail::{GpuDetail, ProcDetail};
 use masthead_core::config::{BarStyle, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
@@ -680,6 +681,9 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
     let u = app.units();
     let mut procs: Vec<ProcDetail> = app.procs.clone();
     app.sort.apply(&mut procs);
+    if let Some(order) = &app.held_order {
+        model::hold_order(&mut procs, order);
+    }
     let mut shown = model::filter_procs(&procs, &app.filter);
     let matched = shown.len();
     shown.truncate(model::rows_that_fit(height));
@@ -687,7 +691,7 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
         column![
             t("Processes", 21.0, BOLD, p.fg),
             t(
-                format!("Read-only · {} of {matched} shown · sorted and filtered across the busiest {}", shown.len(), procs.len()),
+                format!("{} of {matched} shown · sorted and filtered across the busiest {}", shown.len(), procs.len()),
                 11.5,
                 MONO,
                 p.fg_muted
@@ -695,8 +699,10 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
         ]
         .spacing(3),
         fill(),
+        kill_status(app),
         cosmic::widget::text_input("Filter by name or user", &app.filter).on_input(Message::Filter).width(240),
     ]
+    .spacing(16)
     .align_y(Alignment::Center);
 
     let arrow = |k: SortKey| if app.sort.key == k { if app.sort.descending { " ↓" } else { " ↑" } } else { "" };
@@ -722,10 +728,17 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
         sort_head("PID", SortKey::Pid, Some(80.0), true),
         sort_head("CPU", SortKey::Cpu, Some(90.0), true),
         sort_head("Memory", SortKey::Memory, Some(110.0), true),
+        cell(Space::new().into(), Some(KILL_COL), true),
     ]
     .spacing(10);
-    let cols: Cols<'_> =
-        &[("", None, false), ("", Some(110.0), false), ("", Some(80.0), true), ("", Some(90.0), true), ("", Some(110.0), true)];
+    let cols: Cols<'_> = &[
+        ("", None, false),
+        ("", Some(110.0), false),
+        ("", Some(80.0), true),
+        ("", Some(90.0), true),
+        ("", Some(110.0), true),
+        ("", Some(KILL_COL), true),
+    ];
     let mut tbl = column![column![header, swatch(p.border, Length::Fill, 1.0, 0.0)].spacing(5)];
     // Each cell is one text: in software rendering the table's cost is its
     // text count, so it carries no bars and no thread column.
@@ -739,17 +752,66 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
                 t(x.pid.to_string(), 12.0, MONO, p.fg_muted).into(),
                 t(format!("{:.1}%", x.cpu), 12.5, MONO, p.fg).into(),
                 t(format::mem_long(x.rss, u.memory), 12.5, MONO, p.fg).into(),
+                kill_button(x.pid, app.killing, p),
             ],
             cols,
             &p,
         );
         (x.pid, r)
     });
-    tbl = tbl.push(keyed_column(rows));
+    tbl = tbl.push(mouse_area(keyed_column(rows)).on_enter(Message::HoldRows(true)).on_exit(Message::HoldRows(false)));
     if procs.is_empty() {
         tbl = tbl.push(container(t("Waiting for the first process scan…", 12.5, SANS, p.fg_muted)).padding([8, 0]));
     }
     column![head, tbl].spacing(16).into()
+}
+
+/// What the last kill did, beside the filter so the table does not move.
+fn kill_status(app: &App) -> El<'_> {
+    let p = app.pal;
+    match (&app.kill_result, app.killing) {
+        (_, true) => t("Ending the process…", 12.5, SANS, p.fg_muted).into(),
+        (Some(Ok(m)), _) => t(m.clone(), 12.5, SANS, p.fg_muted).into(),
+        (Some(Err(m)), _) => t(m.clone(), 12.5, SANS, p.danger).into(),
+        (None, false) => Space::new().into(),
+    }
+}
+
+const KILL_COL: f32 = 24.0;
+
+/// The per-row button that opens the kill dialog. Red on hover.
+fn kill_button<'a>(pid: u32, busy: bool, p: Palette) -> El<'a> {
+    let b = button(icon(icons::handle("kill"), p.fg_muted, 13.0)).padding(3).class(cosmic::theme::iced::Button::Custom(Box::new(
+        move |_, status| {
+            let hot = matches!(status, button::Status::Hovered | button::Status::Pressed);
+            button::Style {
+                background: hot.then_some(Background::Color(Palette::with_alpha(p.danger, 0.15))),
+                text_color: p.fg,
+                border: Border { radius: 4.0.into(), ..Border::default() },
+                ..button::Style::default()
+            }
+        },
+    )));
+    let b = if busy { b } else { b.on_press(Message::AskKill(pid)) };
+    cosmic::widget::tooltip(b, t("End process…", 12.0, SANS, p.fg), cosmic::widget::tooltip::Position::Left).into()
+}
+
+/// Confirmation for ending `target`.
+pub fn kill_dialog<'a>(target: &Target) -> El<'a> {
+    let Target { pid, name, user, privileged, .. } = target;
+    let owner =
+        if *privileged { format!("\n\nThis process belongs to {user}. You will be asked for your password.") } else { String::new() };
+    let body = format!(
+        "{name} (PID {pid}, user {user}) will be asked to quit. Unsaved work in it may be lost. \
+         Force kill ends it at once, without letting it clean up.{owner}"
+    );
+    cosmic::widget::dialog()
+        .title(format!("End {name}?"))
+        .body(body)
+        .primary_action(cosmic::widget::button::destructive("End process").on_press(Message::Kill(Signal::Term)))
+        .secondary_action(cosmic::widget::button::standard("Cancel").on_press(Message::CancelKill))
+        .tertiary_action(cosmic::widget::button::text("Force kill").on_press(Message::Kill(Signal::Kill)))
+        .into()
 }
 
 // ----------------------------------------------------------------------------

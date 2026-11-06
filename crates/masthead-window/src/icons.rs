@@ -32,6 +32,9 @@ fn source(name: &str) -> &'static str {
         "processes" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4h11M2.5 8h11M2.5 12h7"/></svg>"##
         }
+        "kill" => {
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>"##
+        }
         "settings" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"/><circle cx="10" cy="4.5" r="1.5"/><circle cx="6" cy="11.5" r="1.5"/></svg>"##
         }
@@ -41,7 +44,7 @@ fn source(name: &str) -> &'static str {
     }
 }
 
-/// A handle for a metric's icon, or `processes`, `settings`, `mark`.
+/// A handle for a metric's icon, or `processes`, `settings`, `kill`, `mark`.
 pub fn handle(name: &str) -> svg::Handle {
     svg::Handle::from_memory(source(name).as_bytes())
 }
@@ -56,7 +59,7 @@ mod tests {
 
     #[test]
     fn every_icon_is_svg() {
-        for n in ["cpu", "mem", "gpu", "net", "disk", "temp", "battery", "processes", "settings", "mark"] {
+        for n in ["cpu", "mem", "gpu", "net", "disk", "temp", "battery", "processes", "settings", "kill", "mark"] {
             assert!(source(n).starts_with("<svg"), "{n}");
         }
     }
