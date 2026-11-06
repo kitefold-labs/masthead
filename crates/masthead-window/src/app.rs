@@ -272,7 +272,8 @@ impl Application for App {
     }
 
     fn init(mut core: Core, flags: Flags) -> (Self, Task<Message>) {
-        core.window.header_title = "Masthead".into();
+        // The name sits beside the logo in header_start, not centered.
+        core.window.header_title = String::new();
         core.window.show_maximize = true;
         core.window.content_container = false;
         let mut app = App {
@@ -312,6 +313,10 @@ impl Application for App {
             None => Task::none(),
         };
         (app, title)
+    }
+
+    fn header_start(&self) -> Vec<Element<'_, Message>> {
+        vec![views::brand(&self.pal)]
     }
 
     fn subscription(&self) -> Subscription<Message> {
