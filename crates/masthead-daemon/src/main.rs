@@ -138,6 +138,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut alerts: BTreeMap<MetricId, SustainedAlert> = BTreeMap::new();
     let mut tray: Option<tray::Tray> = None;
     let mut native_face_seen: Option<Instant> = None;
+    // Debug timing: total time spent in sample-to-publish, logged each minute.
+    let (mut busy, mut ticks) = (Duration::ZERO, 0u32);
 
     loop {
         let mut immediate = false;
@@ -223,6 +225,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         if sampler.net_stale() {
             sampler.rediscover(masthead_probe::uevent::Changes::default());
         }
+        let tick_start = Instant::now();
         let point = match sampler.sample(&demand, &cfg) {
             Ok(p) => p,
             Err(e) => {
@@ -272,6 +275,13 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
                     notify::send(&conn, &summary, &body).await;
                 }
             }
+        }
+
+        busy += tick_start.elapsed();
+        ticks += 1;
+        if ticks == 60 {
+            ::log::debug!("tick: {:.0} µs average over 60 s", busy.as_secs_f64() * 1e6 / 60.0);
+            (busy, ticks) = (Duration::ZERO, 0);
         }
 
         let want_tray = lock(&shared).tray_active;

@@ -14,12 +14,13 @@ build, `scripts/soak.sh` with one `masthead-bar` subscriber:
 
 | Run | CPU | RSS | Disk writes | Threads |
 |---|---|---|---|---|
-| Resting, NVML off, 120 s | 120 ms (0.10%) | 4.9 MB | 0 | 1 |
-| Resting, NVML on, 120 s | 70 ms (0.06%) | 25.4 MB | 0 | 2 |
+| Resting, NVML off, 60 s | 36 ms (0.060%) | 4.9 MB | 0 | 1 |
+| Resting, NVML on, 120 s | 70 ms (0.058%) | 25.4 MB | 0 | 2 |
 
-Both runs overlapped a 32-thread libcosmic build that kept the load average
-near 18. CPU time is counted in 10 ms ticks, so a two-minute run resolves
-0.008% steps.
+Both runs overlapped a libcosmic build that kept the load average between 8
+and 18, which inflates CPU time through cache misses and migrations. CPU time
+comes from `/proc/<pid>/schedstat` in nanoseconds (the NVML row from the
+older 10 ms-tick counter).
 
 Per-source cost of one sample (`cargo run --release -p masthead-probe --example tick_cost`):
 

@@ -39,22 +39,23 @@ for t in $TIERS; do args+=(--tier "$t"); done
 B=$!
 sleep 3 # discovery and the first samples are not steady state
 
-stat_ticks() { awk '{print $14 + $15}' "/proc/$D/stat"; }
+# On-CPU time in nanoseconds from schedstat; /proc/<pid>/stat only counts
+# 10 ms ticks, too coarse for a process that runs for microseconds a second.
+cpu_ns() { awk '{print $1}' "/proc/$D/schedstat"; }
 writes() { awk '/^write_bytes/ {print $2}' "/proc/$D/io"; }
 
-t0=$(stat_ticks)
+t0=$(cpu_ns)
 w0=$(writes)
 sleep "$DURATION"
-t1=$(stat_ticks)
+t1=$(cpu_ns)
 w1=$(writes)
 rss=$(awk '/^VmRSS/ {print $2}' "/proc/$D/status")
 hwm=$(awk '/^VmHWM/ {print $2}' "/proc/$D/status")
 threads=$(awk '/^Threads/ {print $2}' "/proc/$D/status")
-hz=$(getconf CLK_TCK)
 
-cpu_ms=$(((t1 - t0) * 1000 / hz))
+cpu_ms=$(((t1 - t0) / 1000000))
 budget_ms=$(awk -v d="$DURATION" -v p="$CPU_BUDGET_PCT" 'BEGIN {printf "%d", d * 1000 * p / 100}')
-pct=$(awk -v c="$cpu_ms" -v d="$DURATION" 'BEGIN {printf "%.4f", c / (d * 10)}')
+pct=$(awk -v c="$((t1 - t0))" -v d="$DURATION" 'BEGIN {printf "%.4f", c / (d * 1e7)}')
 written=$((w1 - w0))
 
 printf 'tiers:        panel %s\n' "$TIERS"
