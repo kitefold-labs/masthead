@@ -272,7 +272,7 @@ impl Sampler {
             if !self.proc_skip {
                 let total = self.stat.total.total();
                 let delta = if self.proc_total_at_scan == 0 { 0 } else { total.saturating_sub(self.proc_total_at_scan) };
-                self.proc_list = self.procs.scan(delta);
+                self.proc_list = self.procs.scan(delta, self.stat.cores.len());
                 self.proc_total_at_scan = total;
             }
         } else if !self.proc_list.is_empty() {

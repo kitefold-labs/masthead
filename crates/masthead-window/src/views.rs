@@ -443,7 +443,7 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                 ]
                 .spacing(10);
                 col = col.push(facts);
-                col = col.push(eyebrow("Top processes · share of all cores", &p));
+                col = col.push(eyebrow("Top processes · CPU, 100% is one core", &p));
                 col = col.push(proc_rows(&c.top, false, &p, u));
             }
         }
@@ -736,7 +736,11 @@ fn processes_page(app: &App, height: f32) -> El<'_> {
         column![
             t("Processes", 21.0, BOLD, p.fg),
             t(
-                format!("{} of {matched} shown · sorted and filtered across the busiest {}", shown.len(), procs.len()),
+                format!(
+                    "{} of {matched} shown · sorted and filtered across the busiest {} · CPU: 100% is one core",
+                    shown.len(),
+                    procs.len()
+                ),
                 11.5,
                 MONO,
                 p.fg_muted
