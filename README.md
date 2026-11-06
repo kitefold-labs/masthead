@@ -38,6 +38,22 @@ per-device detail, a process table that can end processes, and settings.
 Ending another user's process, such as root's, asks for your password through
 polkit.
 
+The Disk page's **Disk usage** scans every local filesystem and shows what
+uses the space as a map you can click through, with a ranked list beside it.
+Its Clean up tab lists space that can be reclaimed:
+
+- container images no container uses, build cache, stopped containers and
+  unused volumes (Docker or Podman);
+- Cargo `target/` folders, `node_modules` and other folders marked as caches;
+- application caches in `~/.cache` and package-manager caches;
+- Rust toolchains other than your default;
+- the Trash, and downloads over 100 MB unchanged for a month.
+
+Each item shows its size and when it last changed, and stale ones are marked.
+Nothing is removed without a confirmation that lists it. Files and folders
+picked on the map go to the Trash; caches are deleted after the folder is
+checked again; container items go through the engine's API.
+
 ## Install
 
 Needs Rust (rustup installs the pinned 1.99), [just](https://github.com/casey/just),
@@ -85,6 +101,7 @@ Measured on a Ryzen 9 9950X3D with an RTX 5090, release builds:
 | Daemon, bar only | 0.06% | 4.9 MB | 0 |
 | Daemon, NVIDIA GPU in the bar | 0.06% | 25 MB | 0 |
 | Detail window, open | 0.3–1.9% | 33 MB, freed on close | 0 |
+| Detail window, after a disk scan | 0.3–1.9% | 50 MB, freed on close | 0 |
 | COSMIC applet | 0.12% | 25 MB | 0 |
 
 - One wakeup per second, with 50 ms timer slack. Nothing is sampled while no
@@ -94,6 +111,9 @@ Measured on a Ryzen 9 9950X3D with an RTX 5090, release builds:
   allocation in steady-state sampling.
 - NVIDIA's NVML library is loaded only while GPU data is on screen and
   unloaded a minute later; it is the 20 MB difference above.
+- A disk scan of 6 million files takes 2–9 s. It runs in a child process
+  that exits when done, so the memory the walk uses goes back to the system;
+  the window keeps only a pruned tree of about 150,000 items.
 - CI runs the daemon for five minutes and fails if it exceeds 0.1% of a core
   or 6 MB.
 
