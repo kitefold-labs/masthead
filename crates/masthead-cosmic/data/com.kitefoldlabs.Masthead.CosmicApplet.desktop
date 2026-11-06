@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Masthead
+Comment=CPU, memory, GPU, network and temperature at a glance; hover for detail, click for graphs
+Type=Application
+Exec=@bindir@/masthead-cosmic
+Terminal=false
+Categories=System;Monitor;
+Keywords=COSMIC;Applet;System;Monitor;CPU;Memory;GPU;Network;Temperature;
+Icon=com.kitefoldlabs.Masthead.CosmicApplet-symbolic
+NoDisplay=true
+X-CosmicApplet=true

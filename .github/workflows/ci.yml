@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Headers and libraries libcosmic needs to build the window and applet.
+  GUI_DEPS: >-
+    pkg-config libxkbcommon-dev libwayland-dev libinput-dev libudev-dev
+    libexpat1-dev libfontconfig-dev libfreetype-dev libegl-dev
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y $GUI_DEPS
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - uses: crate-ci/typos@v1
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y $GUI_DEPS
+      - run: rustup show && rustup component add llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo test --workspace
+      # The libraries and the daemon's sampling logic carry the coverage gate.
+      - run: >-
+          cargo llvm-cov --package masthead-probe --package masthead-core --package masthead-api
+          --ignore-filename-regex "(gpu/nvml.rs|masthead-api/src/lib.rs)"
+          --fail-under-lines 90 --summary-only
+
+  deny:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories bans licenses sources
+
+  budget:
+    # The resting budget from the design: ≤0.1% of a core, ≤6 MB, no disk writes.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y dbus
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p masthead-daemon -p masthead-bar
+      - name: Resting tier, 5 minutes
+        run: DURATION=300 scripts/soak.sh
+      - name: Window tier, 1 minute
+        run: DURATION=60 TIERS=window CPU_BUDGET_PCT=3 RSS_BUDGET_KB=16384 scripts/soak.sh
+
+  gnome-extension:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: make -C shell/gnome check
+
+  package:
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y $GUI_DEPS appstream desktop-file-utils
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+      - run: appstreamcli validate --no-net data/com.kitefoldlabs.Masthead.metainfo.xml
+      - run: desktop-file-validate data/com.kitefoldlabs.Masthead.desktop crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop
+      - run: cargo build --release -p masthead-daemon -p masthead-bar
+      - run: cargo build --release -p masthead-window -p masthead-cosmic
+      - run: scripts/package-deb.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masthead-deb
+          path: dist/*.deb

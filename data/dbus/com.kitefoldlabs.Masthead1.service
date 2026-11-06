@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=com.kitefoldlabs.Masthead1
+Exec=@bindir@/masthead-daemon
+SystemdService=masthead.service

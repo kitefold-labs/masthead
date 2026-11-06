@@ -1,0 +1,137 @@
+/* SPDX-License-Identifier: Apache-2.0
+ * Masthead uses Halyard's dark tokens: surface-2 #15181d, border
+ * rgba(255,255,255,.10), fg #e9ebee, muted #8d949b, accent #26d2ee,
+ * warning #fbbf24, danger #f87171. */
+
+/* --- bar ---------------------------------------------------------------- */
+
+.masthead-item-box {
+  spacing: 5px;
+}
+
+.masthead-icon {
+  icon-size: 16px;
+}
+
+.masthead-value {
+  font-family: JetBrains Mono, Ubuntu Sans Mono, DejaVu Sans Mono, monospace;
+  font-feature-settings: "tnum";
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Minimum widths in em of a monospace face (about 0.6em per digit). */
+.masthead-w4 { min-width: 2.45em; }
+.masthead-w5 { min-width: 3.05em; }
+.masthead-w11 { min-width: 6.7em; }
+
+.masthead-spark {
+  width: 30px;
+  height: 14px;
+}
+
+.masthead-warn .masthead-value,
+.masthead-warn .masthead-icon {
+  color: #fbbf24;
+}
+
+.masthead-crit .masthead-value,
+.masthead-crit .masthead-icon {
+  color: #f87171;
+}
+
+.masthead-dim .masthead-value,
+.masthead-dim .masthead-icon {
+  color: rgba(233, 235, 238, 0.55);
+}
+
+/* --- popover ------------------------------------------------------------ */
+
+.masthead-popover {
+  width: 304px;
+  padding: 14px 14px 12px;
+  spacing: 0;
+  background-color: #15181d;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  color: #e9ebee;
+  font-family: Space Grotesk, Ubuntu Sans, Cantarell, sans-serif;
+  font-size: 10pt;
+}
+
+.masthead-pop-head {
+  spacing: 8px;
+}
+
+.masthead-pop-name {
+  font-weight: 500;
+  color: #8d949b;
+}
+
+.masthead-pop-dev,
+.masthead-pop-foot-text {
+  font-family: JetBrains Mono, Ubuntu Sans Mono, monospace;
+  font-size: 8pt;
+  color: #8d949b;
+}
+
+.masthead-pop-bigrow {
+  spacing: 6px;
+  padding-top: 2px;
+}
+
+.masthead-pop-big {
+  font-family: JetBrains Mono, Ubuntu Sans Mono, monospace;
+  font-feature-settings: "tnum";
+  font-size: 22pt;
+  font-weight: 500;
+  color: #e9ebee;
+}
+
+.masthead-pop-unit {
+  font-family: JetBrains Mono, Ubuntu Sans Mono, monospace;
+  font-size: 10pt;
+  color: #8d949b;
+  padding-bottom: 5px;
+}
+
+.masthead-pop-spark {
+  height: 46px;
+  margin: 8px 0 10px;
+}
+
+.masthead-pop-extra {
+  height: 22px;
+  margin-bottom: 10px;
+}
+
+.masthead-pop-rows {
+  spacing: 4px;
+}
+
+.masthead-pop-row {
+  spacing: 12px;
+}
+
+.masthead-pop-key {
+  color: #8d949b;
+}
+
+.masthead-pop-val {
+  font-family: JetBrains Mono, Ubuntu Sans Mono, monospace;
+  font-feature-settings: "tnum";
+  font-size: 9.5pt;
+  color: #e9ebee;
+}
+
+.masthead-pop-message {
+  color: #e9ebee;
+  padding-bottom: 4px;
+}
+
+.masthead-pop-foot {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}

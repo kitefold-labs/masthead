@@ -1,0 +1,20 @@
+[package]
+name = "masthead-probe"
+description = "Allocation-free readers for Linux /proc and /sys statistics, plus a lazily loaded NVML shim."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+rustix = { workspace = true, features = ["fs", "net", "param"] }
+libloading.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

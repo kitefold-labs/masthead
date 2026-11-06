@@ -1,0 +1,20 @@
+[package]
+name = "masthead-bar"
+description = "Masthead for Waybar, Ironbar, eww, i3bar and swaybar: prints bar values as JSON lines when they change."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+masthead-api.workspace = true
+masthead-core.workspace = true
+zbus.workspace = true
+tokio = { workspace = true, features = ["rt", "macros", "io-std", "io-util", "time"] }
+serde_json.workspace = true
+futures-util.workspace = true
+
+[lints]
+workspace = true

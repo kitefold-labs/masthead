@@ -1,0 +1,26 @@
+[package]
+name = "masthead-daemon"
+description = "Masthead's sampler: reads /proc and /sys once a second and publishes over the session bus."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+masthead-probe.workspace = true
+masthead-core.workspace = true
+masthead-api.workspace = true
+zbus.workspace = true
+tokio = { workspace = true, features = ["rt", "time", "sync", "macros", "net"] }
+serde_json.workspace = true
+rustix = { workspace = true, features = ["fs", "system", "thread", "event"] }
+log.workspace = true
+futures-util.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

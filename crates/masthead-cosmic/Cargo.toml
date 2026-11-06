@@ -1,0 +1,30 @@
+[package]
+name = "masthead-cosmic"
+description = "Masthead for the COSMIC panel: bar values with hover popovers, fed by masthead-daemon."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# Depends on libcosmic from git, which crates.io cannot host.
+publish = false
+
+[dependencies]
+masthead-api.workspace = true
+masthead-core.workspace = true
+zbus.workspace = true
+serde_json.workspace = true
+futures-util.workspace = true
+tokio = { workspace = true, features = ["sync", "time", "macros"] }
+
+[dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic"
+rev = "7cd76ae3160cbd26ae89a4c01e64eda21f648c7f"
+default-features = false
+# The feature set cosmic-applets uses, minus dbus-config and applet-token.
+# No wgpu: the tiny-skia software renderer is cheap at one update a second.
+features = ["applet", "tokio", "wayland", "winit", "multi-window"]
+
+[lints]
+workspace = true
