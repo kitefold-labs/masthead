@@ -28,6 +28,8 @@ pub const BOLD: Font = font("Space Grotesk", Weight::Bold);
 pub const MONO: Font = font("JetBrains Mono", Weight::Normal);
 pub const MONO_MEDIUM: Font = font("JetBrains Mono", Weight::Medium);
 
+pub mod disk_page;
+
 type El<'a> = Element<'a, Message>;
 
 fn t<'a>(s: impl Into<String>, size: f32, f: Font, c: Color) -> text::Text<'a, cosmic::Theme, cosmic::Renderer> {
@@ -146,7 +148,7 @@ pub fn sidebar(app: &App) -> El<'_> {
     let units = app.units();
     let mem_total = app.mem_total();
     for m in app.metrics() {
-        let selected = app.page == Page::Metric(m);
+        let selected = app.page == Page::Metric(m) || (m == MetricId::Disk && app.page == Page::DiskUsage);
         let value = app.detail.as_ref().and_then(|d| model::short_value(m, d, units)).unwrap_or_else(|| "–".into());
         let level = panel_level(app, m);
         let vcolor = if level > 0 { p.level(level) } else { p.fg_muted };
@@ -202,6 +204,8 @@ pub fn main(app: &App) -> El<'_> {
     let body: El<'_> = match app.page {
         Page::Metric(m) => scrollable(col.push(metric_page(app, m))).height(Length::Fill).into(),
         Page::Settings => scrollable(col.push(settings_page(app))).height(Length::Fill).into(),
+        // The page scrolls below its header, so results stay in view.
+        Page::DiskUsage => col.push(disk_page::page(app)).height(Length::Fill).into(),
         // The process table sizes itself to the window instead of scrolling:
         // software rendering draws text inside a scroll clip several times
         // slower, and this table is the busiest thing the window draws.
@@ -577,6 +581,7 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                     }
                 }
             }
+            col = col.push(disk_usage_card(app));
         }
         MetricId::Temp => {
             if let Some(s) = &d.sensors {
@@ -683,6 +688,33 @@ fn gpu_card<'a>(g: &GpuDetail, p: &Palette, u: masthead_core::config::Units) -> 
     }
     col = col.push(t(format!("{} · {}", g.driver, g.pci), 11.0, MONO, p.fg_dim));
     boxed(col, *p, p.surface).padding([10, 12]).width(Length::Fill).into()
+}
+
+/// The Disk page's way into the disk map and cleanup.
+fn disk_usage_card(app: &App) -> El<'_> {
+    let p = app.pal;
+    let d = &app.disk;
+    let note = match (&d.scan, d.scanning()) {
+        (_, true) => "Scanning now.".to_owned(),
+        (Some(_), false) => format!("{} can be cleaned up.", format::bytes(d.reclaimable())),
+        (None, false) => {
+            "See which folders and files use the space, and clean up container images, build outputs, caches and old downloads.".to_owned()
+        }
+    };
+    let label = if d.scan.is_some() || d.scanning() { "Open disk usage" } else { "Scan disk usage" };
+    boxed(
+        row![
+            column![t("Disk usage", 14.0, BOLD, p.fg), t(note, 12.0, SANS, p.fg_muted)].spacing(3).width(Length::Fill),
+            small_button(label, Some(Message::OpenDiskUsage), p),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Center),
+        p,
+        p.surface,
+    )
+    .padding([12, 14])
+    .width(Length::Fill)
+    .into()
 }
 
 // ----------------------------------------------------------------------------

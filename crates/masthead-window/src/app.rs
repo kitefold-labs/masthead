@@ -6,6 +6,7 @@
 
 use crate::bus::{Command, EVENTS, Event, Req};
 use crate::chart::Cache;
+use crate::disk::{Disk, DiskMsg};
 use crate::kill::{self, Signal, Target};
 use crate::model::{self, Page, Range, Series, Sort, SortKey};
 use crate::palette::{self, Palette};
@@ -60,6 +61,9 @@ pub enum Message {
     Killed(u32, Result<String, String>),
     /// The pointer entered (`true`) or left the process rows.
     HoldRows(bool),
+    /// Opens the Disk usage page, scanning if it has not yet.
+    OpenDiskUsage,
+    Disk(DiskMsg),
 }
 
 /// Startup state handed to [`App::init`].
@@ -103,6 +107,7 @@ pub struct App {
     /// Process row order frozen while the pointer is over the rows, so a row
     /// does not move under it between aiming and clicking.
     pub held_order: Option<Vec<u32>>,
+    pub disk: Disk,
     requests: UnboundedSender<Req>,
 }
 
@@ -301,6 +306,7 @@ impl Application for App {
             killing: false,
             kill_result: None,
             held_order: None,
+            disk: Disk::default(),
             requests: flags.requests,
         };
         app.send(Req::Start);
@@ -312,7 +318,8 @@ impl Application for App {
             Some(id) => app.set_window_title("Masthead".into(), id),
             None => Task::none(),
         };
-        (app, title)
+        let scan = app.scan_if_new();
+        (app, Task::batch([title, scan]))
     }
 
     fn header_start(&self) -> Vec<Element<'_, Message>> {
@@ -320,7 +327,13 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        Subscription::run(events)
+        let bus = Subscription::run(events);
+        if self.disk.scanning() {
+            let tick = cosmic::iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::Disk(DiskMsg::Tick));
+            Subscription::batch([bus, tick])
+        } else {
+            bus
+        }
     }
 
     fn on_close_requested(&self, _id: cosmic::iced::window::Id) -> Option<Message> {
@@ -337,12 +350,12 @@ impl Application for App {
                         self.send(Req::Quit);
                     } else {
                         self.select(p);
-                        return self.raise();
+                        return Task::batch([self.raise(), self.scan_if_new()]);
                     }
                 }
                 Event::Command(Command::Show(p)) => {
                     self.select(p);
-                    return self.raise();
+                    return Task::batch([self.raise(), self.scan_if_new()]);
                 }
                 Event::Describe(d) => {
                     self.describe = Some(*d);
@@ -470,6 +483,11 @@ impl Application for App {
                 }
                 self.kill_result = Some(result);
             }
+            Message::OpenDiskUsage => {
+                self.select(Page::DiskUsage);
+                return self.scan_if_new();
+            }
+            Message::Disk(m) => return self.disk.update(m),
             Message::HoldRows(hold) => {
                 self.held_order = hold.then(|| {
                     let mut procs = self.procs.clone();
@@ -482,7 +500,7 @@ impl Application for App {
     }
 
     fn dialog(&self) -> Option<Element<'_, Message>> {
-        self.kill.as_ref().map(views::kill_dialog)
+        self.kill.as_ref().map(views::kill_dialog).or_else(|| views::disk_page::dialog(self))
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -493,6 +511,11 @@ impl Application for App {
 }
 
 impl App {
+    /// Starts the first disk scan when the Disk usage page opens.
+    fn scan_if_new(&mut self) -> Task<Message> {
+        if self.page == Page::DiskUsage && self.disk.scan.is_none() && !self.disk.scanning() { self.disk.start() } else { Task::none() }
+    }
+
     fn raise(&self) -> Task<Message> {
         match self.core.main_window_id() {
             Some(id) => cosmic::iced::window::gain_focus(id),

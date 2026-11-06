@@ -59,6 +59,11 @@ come from libcosmic and its dependencies rather than Masthead's code, and it
 redraws in software. Trimming it is tracked in
 [#1](https://github.com/kitefold-labs/masthead/issues/1).
 
+A disk scan on the same machine (one 3.6 TB ext4 root, 6.0 million files,
+1.07 million folders) takes 8.7 s cold and 2–3 s with the inode cache warm.
+The scan process peaks at 87 MB and exits. The window holds the pruned tree
+(149,000 nodes) and measured 50 MB afterwards, against 33 MB before.
+
 The window renders with tiny-skia. The `wgpu` feature cuts its CPU to about
 0.35% but maps the GPU driver into the process (170–210 MB RSS on NVIDIA), so
 software rendering is the default.
