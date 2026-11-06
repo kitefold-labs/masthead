@@ -42,7 +42,7 @@ fn source(name: &str) -> &'static str {
     }
 }
 
-/// A handle for a metric's icon, or `processes` or `settings`.
+/// A handle for a metric's icon, or `processes`, `settings` or `kill`.
 pub fn handle(name: &str) -> svg::Handle {
     svg::Handle::from_memory(source(name).as_bytes())
 }
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn every_icon_is_svg() {
-        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings"]);
+        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings", "kill"]);
         for n in names {
             assert!(source(n).starts_with("<svg"), "{n}");
         }
