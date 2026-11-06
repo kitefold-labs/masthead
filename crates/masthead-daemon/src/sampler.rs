@@ -162,6 +162,8 @@ impl Sampler {
             roots,
         };
         s.cpu.sample(&mut stat)?;
+        // Describe() reports the memory total before the first tick.
+        s.mem_info = s.mem.sample()?;
         let threads = stat.cores.len();
         s.cores = cpu::physical_cores(&s.roots).map_or(threads as u32, |c| c as u32);
         s.freq = CpuFreq::open(&s.roots, threads);
@@ -728,6 +730,7 @@ mod tests {
         let cpu = s.detail(Some(MetricId::Cpu), &cfg, false, 0);
         assert!(cpu.cpu.unwrap().top.is_empty());
         let desc = s.describe("0.0.0");
+        assert_eq!(desc.mem_total, 1_073_741_824);
         assert_eq!(desc.metrics, ["cpu", "mem", "net", "temp"]);
         s.reprime();
         assert!(s.sample(&demand, &cfg).unwrap().cpu.is_nan());
