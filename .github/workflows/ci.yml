@@ -21,7 +21,7 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y $GUI_DEPS
@@ -33,7 +33,7 @@ jobs:
       - run: scripts/check-copyright.sh
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y $GUI_DEPS
@@ -50,7 +50,7 @@ jobs:
           --fail-under-lines 90 --summary-only
 
   deny:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
@@ -59,7 +59,7 @@ jobs:
 
   budget:
     # The resting budget from the design: ≤0.1% of a core, ≤6 MB, no disk writes.
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y dbus
@@ -72,7 +72,7 @@ jobs:
         run: DURATION=60 TIERS=window CPU_BUDGET_PCT=3 RSS_BUDGET_KB=16384 scripts/soak.sh
 
   gnome-extension:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -81,7 +81,7 @@ jobs:
       - run: make -C shell/gnome check
 
   package:
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, linux, x64, kitefold-ghost, ephemeral]
     needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
