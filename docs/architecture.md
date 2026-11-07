@@ -25,6 +25,7 @@ sampling cost.
 | `masthead-probe` | lib | Readers for `/proc` and `/sys`, the NVML shim, netlink uevents. No allocation in steady state. |
 | `masthead-core` | lib | Metric ids, formatting, history rings, subscription tiers, thresholds, config. No I/O except the config file. |
 | `masthead-api` | lib | The D-Bus contract: names, wire types, detail JSON, client proxies. |
+| `masthead-disk` | lib | Disk usage: the parallel scan, the size tree, cleanup finders, the Docker Engine API client, cleanup actions. |
 | `masthead-daemon` | bin | Sampling loop, D-Bus service, SNI tray fallback, notifications. |
 | `masthead-bar` | bin | JSON lines for Waybar, Ironbar, eww; the i3bar protocol. |
 | `masthead-window` | bin | The detail window (iced via libcosmic). |
@@ -104,3 +105,27 @@ system. It owns `com.kitefoldlabs.Masthead.Window`; the daemon calls its
 confirmation dialog. It runs `kill(1)` itself for the user's own processes
 and `pkexec kill` for anyone else's, so polkit asks for a password and the
 window never holds privileges. It never renices.
+
+### Disk usage
+
+The Disk usage page starts `masthead-window --disk-scan`, which walks every
+local filesystem (ext4, xfs, btrfs and the like, from `/proc/self/mountinfo`)
+on a rayon pool, staying on one device per root. Sizes are allocated blocks
+and hard links count once. Each directory folds items under 4 MiB, and all
+but its largest 300, into one "smaller items" node as soon as it is done, so
+the tree stays small. The child reports progress on stderr and sends the tree
+on stdout as a flat pre-order list, then exits. The walk churns through far
+more memory than the tree, and glibc would keep that in a long-lived window.
+
+The scan runs as the user. Space the filesystem reports as used but the walk
+could not read (other users' and root's folders, `/var/lib/docker`) is shown
+as one "Not readable without root" block.
+
+Cleanup findings come from the scan (folders holding a `CACHEDIR.TAG`,
+outermost `node_modules`, `~/.cache`, fixed tool caches, Rust toolchains, the
+Trash, old downloads) and from Docker's `GET /system/df`. Container items are
+removed through the Engine API over its Unix socket, never with a raw
+delete. Cache folders are deleted only after a fresh check that the folder is
+still a directory, not a symlink, owned by the user and still marked as a
+cache. Files picked on the map go to the Trash with `gio trash`, and only
+inside the home folder.

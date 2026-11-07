@@ -36,6 +36,9 @@ mode = "auto"             # auto | always | never
 [notifications]
 enabled = false           # notify when a metric stays critical
 hold_seconds = 60
+
+[window]
+theme = "system"          # system | dark | light: the detail window's colors
 ```
 
 Physical network interfaces only by default: `docker0`, `veth*` and `br-*`

@@ -97,17 +97,45 @@ for m in "${metrics[@]}"; do
     put "shell/gnome/icons/masthead-$m-symbolic.svg" "$datadir/icons/hicolor/symbolic/apps/com.kitefoldlabs.Masthead-$m-symbolic.svg"
 done
 
+# A digest of the installed extension, to tell whether this install changed it.
+ext_digest() {
+    [ -d "$1" ] || return 0
+    (cd "$1" && find . -type f -print0 | sort -z | xargs -0 sha256sum) | sha256sum | cut -d' ' -f1
+}
+
+ext_changed=0
 if [ -f "shell/gnome/metadata.json" ]; then
     ext="$DESTDIR$datadir/gnome-shell/extensions/$ext_uuid"
+    ext_before=$(ext_digest "$ext")
     rm -rf "$ext"
     mkdir -p "$ext"
     (cd shell/gnome && for f in *.js metadata.json stylesheet.css icons/*.svg; do
         install -D -m 644 "$f" "$ext/$f"
     done)
+    [ "$ext_before" = "$(ext_digest "$ext")" ] || ext_changed=1
 fi
 
 if [ "$USER_INSTALL" = 1 ] && [ -z "$DESTDIR" ]; then
     systemctl --user daemon-reload 2>/dev/null || true
     echo "Installed into $PREFIX."
-    echo "GNOME: log out and back in, then run: gnome-extensions enable $ext_uuid"
+    # Programs already running keep the old code until they restart. Faces
+    # reconnect to a restarted daemon on their own.
+    if systemctl --user is-active --quiet masthead.service 2>/dev/null; then
+        systemctl --user restart masthead.service && echo "Restarted the daemon."
+    fi
+    if pkill -x masthead-window 2>/dev/null; then
+        echo "Closed the detail window; open it again to get the new version."
+    fi
+    if pgrep -x masthead-cosmic >/dev/null 2>&1; then
+        echo "COSMIC: the panel applet keeps the old version until you log out and back in."
+    fi
+    if pgrep -x gnome-shell >/dev/null 2>&1; then
+        enabled=$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null || true)
+        if [[ "$enabled" != *"'$ext_uuid'"* ]]; then
+            echo "GNOME: log out and back in, then run: gnome-extensions enable $ext_uuid"
+        elif [ "$ext_changed" = 1 ]; then
+            # GNOME Shell on Wayland loads extension code only at login.
+            echo "GNOME: log out and back in to load the updated extension."
+        fi
+    fi
 fi

@@ -6,6 +6,7 @@
 
 use crate::bus::{Command, EVENTS, Event, Req};
 use crate::chart::Cache;
+use crate::disk::{Disk, DiskMsg};
 use crate::kill::{self, Signal, Target};
 use crate::model::{self, Page, Range, Series, Sort, SortKey};
 use crate::palette::{self, Palette};
@@ -16,7 +17,7 @@ use cosmic::{Application, ApplicationExt, Element};
 use masthead_api::PanelItem;
 use masthead_api::detail::{Describe, Detail};
 use masthead_core::MetricId;
-use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
+use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
 use masthead_core::thresholds::Threshold;
 use std::collections::{BTreeMap, HashMap};
 use tokio::sync::mpsc::UnboundedSender;
@@ -50,6 +51,7 @@ pub enum Message {
     TempSensor(usize),
     Virtual(bool),
     Tray(usize),
+    Theme(usize),
     Notify(bool),
     HoldInput(String),
     ApplyHold,
@@ -64,19 +66,27 @@ pub enum Message {
     CancelQuitAll,
     /// The pointer entered (`true`) or left the process rows.
     HoldRows(bool),
+    /// Opens the Disk usage page, scanning if it has not yet.
+    OpenDiskUsage,
+    Disk(DiskMsg),
 }
 
 /// Startup state handed to [`App::init`].
 #[derive(Debug)]
 pub struct Flags {
     pub page: Page,
+    /// The desktop's preference.
     pub dark: bool,
+    /// The theme setting, read from the config file before the first frame.
+    pub theme: Theme,
     pub requests: UnboundedSender<Req>,
 }
 
 pub struct App {
     core: Core,
     pub pal: Palette,
+    /// The desktop's light or dark preference; the theme setting can override it.
+    system_dark: bool,
     pub page: Page,
     pub range: Range,
     pub describe: Option<Describe>,
@@ -109,7 +119,17 @@ pub struct App {
     pub held_order: Option<Vec<u32>>,
     /// The Quit Masthead confirmation is open.
     pub confirm_quit: bool,
+    pub disk: Disk,
     requests: UnboundedSender<Req>,
+}
+
+/// Dark or light, from the theme setting and the desktop's preference.
+pub fn effective_dark(theme: Theme, system_dark: bool) -> bool {
+    match theme {
+        Theme::System => system_dark,
+        Theme::Dark => true,
+        Theme::Light => false,
+    }
 }
 
 /// Bar metrics the thresholds editor offers.
@@ -120,6 +140,8 @@ pub const MEM_OPTIONS: [&str; 2] = ["Binary (GiB)", "Decimal (GB)"];
 pub const NET_OPTIONS: [&str; 2] = ["Bytes (MB/s)", "Bits (Mb/s)"];
 pub const TEMP_OPTIONS: [&str; 2] = ["Celsius", "Fahrenheit"];
 pub const TRAY_OPTIONS: [&str; 3] = ["Only without a native bar", "Always", "Never"];
+pub const THEME_OPTIONS: [&str; 3] = ["Follow the system", "Dark", "Light"];
+pub const THEMES: [Theme; 3] = [Theme::System, Theme::Dark, Theme::Light];
 
 impl App {
     fn send(&self, r: Req) {
@@ -219,6 +241,22 @@ impl App {
         self.config = Some(c);
     }
 
+    /// Switches the palette if the theme setting or the desktop's preference
+    /// now calls for the other one.
+    fn apply_theme(&mut self) -> Task<Message> {
+        let theme = self.config.as_ref().map_or(Theme::System, |c| c.window.theme);
+        let dark = effective_dark(theme, self.system_dark);
+        if self.pal.dark == dark {
+            return Task::none();
+        }
+        self.pal = Palette::for_dark(dark);
+        self.chart_cache.clear();
+        for c in self.spark_cache.values() {
+            c.clear();
+        }
+        cosmic::command::set_theme(palette::cosmic_theme(&self.pal))
+    }
+
     /// Change the configuration locally and send it to the daemon.
     fn edit(&mut self, f: impl FnOnce(&mut Config)) {
         if let Some(c) = &mut self.config {
@@ -284,7 +322,8 @@ impl Application for App {
         core.window.content_container = false;
         let mut app = App {
             core,
-            pal: Palette::for_dark(flags.dark),
+            pal: Palette::for_dark(effective_dark(flags.theme, flags.dark)),
+            system_dark: flags.dark,
             page: flags.page,
             range: Range::default(),
             describe: None,
@@ -308,6 +347,7 @@ impl Application for App {
             kill_result: None,
             held_order: None,
             confirm_quit: false,
+            disk: Disk::default(),
             requests: flags.requests,
         };
         app.send(Req::Start);
@@ -319,7 +359,8 @@ impl Application for App {
             Some(id) => app.set_window_title("Masthead".into(), id),
             None => Task::none(),
         };
-        (app, title)
+        let scan = app.scan_if_new();
+        (app, Task::batch([title, scan]))
     }
 
     fn header_start(&self) -> Vec<Element<'_, Message>> {
@@ -331,7 +372,13 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        Subscription::run(events)
+        let bus = Subscription::run(events);
+        if self.disk.scanning() {
+            let tick = cosmic::iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::Disk(DiskMsg::Tick));
+            Subscription::batch([bus, tick])
+        } else {
+            bus
+        }
     }
 
     fn on_close_requested(&self, _id: cosmic::iced::window::Id) -> Option<Message> {
@@ -348,12 +395,12 @@ impl Application for App {
                         self.send(Req::Quit);
                     } else {
                         self.select(p);
-                        return self.raise();
+                        return Task::batch([self.raise(), self.scan_if_new()]);
                     }
                 }
                 Event::Command(Command::Show(p)) => {
                     self.select(p);
-                    return self.raise();
+                    return Task::batch([self.raise(), self.scan_if_new()]);
                 }
                 Event::Describe(d) => {
                     self.describe = Some(*d);
@@ -365,7 +412,10 @@ impl Application for App {
                     }
                     self.error = None;
                 }
-                Event::Config(c) => self.on_config(*c),
+                Event::Config(c) => {
+                    self.on_config(*c);
+                    return self.apply_theme();
+                }
                 Event::Panel(items) => self.panel = items,
                 Event::Detail(d) => self.on_detail(*d),
                 Event::History { generation, index, series } => {
@@ -383,14 +433,8 @@ impl Application for App {
                     }
                 }
                 Event::Dark(d) => {
-                    if self.pal.dark != d {
-                        self.pal = Palette::for_dark(d);
-                        self.chart_cache.clear();
-                        for c in self.spark_cache.values() {
-                            c.clear();
-                        }
-                        return cosmic::command::set_theme(palette::cosmic_theme(&self.pal));
-                    }
+                    self.system_dark = d;
+                    return self.apply_theme();
                 }
                 Event::Error(e) => self.error = Some(e),
             },
@@ -446,6 +490,10 @@ impl Application for App {
                 }
             }
             Message::Virtual(on) => self.edit(|c| c.devices.include_virtual_interfaces = on),
+            Message::Theme(i) => {
+                self.edit(|c| c.window.theme = THEMES[i.min(2)]);
+                return self.apply_theme();
+            }
             Message::Tray(i) => self.edit(|c| c.tray.mode = [TrayMode::Auto, TrayMode::Always, TrayMode::Never][i.min(2)]),
             Message::Notify(on) => self.edit(|c| c.notifications.enabled = on),
             Message::HoldInput(v) => self.hold = v,
@@ -492,6 +540,11 @@ impl Application for App {
                     Err(e) => self.error = Some(format!("Could not quit Masthead: {e}")),
                 }
             }
+            Message::OpenDiskUsage => {
+                self.select(Page::DiskUsage);
+                return self.scan_if_new();
+            }
+            Message::Disk(m) => return self.disk.update(m),
             Message::HoldRows(hold) => {
                 self.held_order = hold.then(|| {
                     let mut procs = self.procs.clone();
@@ -507,7 +560,7 @@ impl Application for App {
         if self.confirm_quit {
             return Some(views::quit_dialog());
         }
-        self.kill.as_ref().map(views::kill_dialog)
+        self.kill.as_ref().map(views::kill_dialog).or_else(|| views::disk_page::dialog(self))
     }
 
     fn view(&self) -> Element<'_, Message> {
@@ -518,6 +571,11 @@ impl Application for App {
 }
 
 impl App {
+    /// Starts the first disk scan when the Disk usage page opens.
+    fn scan_if_new(&mut self) -> Task<Message> {
+        if self.page == Page::DiskUsage && self.disk.scan.is_none() && !self.disk.scanning() { self.disk.start() } else { Task::none() }
+    }
+
     fn raise(&self) -> Task<Message> {
         match self.core.main_window_id() {
             Some(id) => cosmic::iced::window::gain_focus(id),
@@ -547,6 +605,15 @@ pub fn parse_thresholds(drafts: &BTreeMap<MetricId, (String, String)>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn theme_setting_overrides_the_desktop() {
+        assert!(effective_dark(Theme::System, true));
+        assert!(!effective_dark(Theme::System, false));
+        assert!(effective_dark(Theme::Dark, false));
+        assert!(!effective_dark(Theme::Light, true));
+        assert_eq!(THEMES.len(), THEME_OPTIONS.len());
+    }
 
     #[test]
     fn thresholds_editor() {

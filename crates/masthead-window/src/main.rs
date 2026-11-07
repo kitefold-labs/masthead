@@ -10,10 +10,12 @@
 mod app;
 mod bus;
 mod chart;
+mod disk;
 mod icons;
 mod kill;
 mod model;
 mod palette;
+mod treemap;
 mod views;
 
 use bus::{Claim, Command, Event};
@@ -25,13 +27,15 @@ const USAGE: &str = "masthead-window — Masthead's detail window
 
 USAGE:
     masthead-window [--metric ID]   Open on a metric (cpu, mem, gpu, net, disk,
-                                    temp, battery), processes or settings
+                                    temp, battery), processes, settings or
+                                    disk-usage
     masthead-window --service       Wait for a D-Bus Toggle or Show call, then open
                                     (what D-Bus activation runs)
     masthead-window --version
 
 ENVIRONMENT:
-    MASTHEAD_THEME=dark|light       Override the desktop's color scheme";
+    MASTHEAD_THEME=dark|light       Override the desktop's color scheme (the
+                                    Theme setting still takes precedence)";
 
 /// How long an activated service waits for its first call before giving up.
 const SERVICE_WAIT: Duration = Duration::from_secs(25);
@@ -83,6 +87,11 @@ fn load_fonts() {
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    // The Disk usage page runs its scan in a child copy of this program.
+    if args.first().map(String::as_str) == Some(masthead_disk::child::ARG) {
+        let code = i32::from(masthead_disk::child::serve(args.get(1).map(Into::into)).is_err());
+        std::process::exit(code);
+    }
     let mode = match parse_args(&args) {
         Ok(Some(m)) => m,
         Ok(None) => return,
@@ -133,15 +142,19 @@ fn main() {
     }
     load_fonts();
     let dark = dark.unwrap_or(true);
-    let pal = palette::Palette::for_dark(dark);
+    // Read the theme setting now so the first frame already uses it; the
+    // daemon sends the full configuration a moment later.
+    let theme =
+        masthead_core::config::Config::load(&masthead_core::config::Config::default_path()).map(|c| c.window.theme).unwrap_or_default();
+    let pal = palette::Palette::for_dark(app::effective_dark(theme, dark));
     let settings = cosmic::app::Settings::default()
         .size(cosmic::iced::Size::new(1040.0, 720.0))
         .size_limits(cosmic::iced::Limits::NONE.min_width(760.0).min_height(520.0))
         .default_font(views::SANS)
         .default_text_size(14.0)
         .theme(palette::cosmic_theme(&pal))
-        .transparent(false);
-    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, requests }) {
+        .transparent(true);
+    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, requests }) {
         eprintln!("masthead-window: {e}");
         std::process::exit(1);
     }
