@@ -1059,8 +1059,17 @@ fn settings_page(app: &App) -> El<'_> {
         ),
     ];
 
+    let theme_idx = app::THEMES.iter().position(|t| *t == cfg.window.theme).unwrap_or(0);
+    let appearance = vec![setting(
+        "Theme",
+        "Colors of this window. The bar follows your desktop.",
+        cosmic::widget::dropdown(&app::THEME_OPTIONS[..], Some(theme_idx), Message::Theme).into(),
+        &p,
+    )];
+
     column![
         head,
+        section("Appearance", appearance, p),
         section("Bar", bar_rows, p),
         section("Units", units, p),
         section("Thresholds", thresholds, p),

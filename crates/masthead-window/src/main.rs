@@ -34,7 +34,8 @@ USAGE:
     masthead-window --version
 
 ENVIRONMENT:
-    MASTHEAD_THEME=dark|light       Override the desktop's color scheme";
+    MASTHEAD_THEME=dark|light       Override the desktop's color scheme (the
+                                    Theme setting still takes precedence)";
 
 /// How long an activated service waits for its first call before giving up.
 const SERVICE_WAIT: Duration = Duration::from_secs(25);
@@ -139,7 +140,11 @@ fn main() {
     }
     load_fonts();
     let dark = dark.unwrap_or(true);
-    let pal = palette::Palette::for_dark(dark);
+    // Read the theme setting now so the first frame already uses it; the
+    // daemon sends the full configuration a moment later.
+    let theme =
+        masthead_core::config::Config::load(&masthead_core::config::Config::default_path()).map(|c| c.window.theme).unwrap_or_default();
+    let pal = palette::Palette::for_dark(app::effective_dark(theme, dark));
     let settings = cosmic::app::Settings::default()
         .size(cosmic::iced::Size::new(1040.0, 720.0))
         .size_limits(cosmic::iced::Limits::NONE.min_width(760.0).min_height(520.0))
@@ -147,7 +152,7 @@ fn main() {
         .default_text_size(14.0)
         .theme(palette::cosmic_theme(&pal))
         .transparent(true);
-    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, requests }) {
+    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, requests }) {
         eprintln!("masthead-window: {e}");
         std::process::exit(1);
     }
