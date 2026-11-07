@@ -60,6 +60,10 @@ pub enum Message {
     CancelKill,
     Kill(Signal),
     Killed(u32, Result<String, String>),
+    /// Quit Masthead: ask, then stop the daemon and close the window.
+    AskQuitAll,
+    QuitAll,
+    CancelQuitAll,
     /// The pointer entered (`true`) or left the process rows.
     HoldRows(bool),
     /// Opens the Disk usage page, scanning if it has not yet.
@@ -113,6 +117,8 @@ pub struct App {
     /// Process row order frozen while the pointer is over the rows, so a row
     /// does not move under it between aiming and clicking.
     pub held_order: Option<Vec<u32>>,
+    /// The Quit Masthead confirmation is open.
+    pub confirm_quit: bool,
     pub disk: Disk,
     requests: UnboundedSender<Req>,
 }
@@ -340,6 +346,7 @@ impl Application for App {
             killing: false,
             kill_result: None,
             held_order: None,
+            confirm_quit: false,
             disk: Disk::default(),
             requests: flags.requests,
         };
@@ -358,6 +365,10 @@ impl Application for App {
 
     fn header_start(&self) -> Vec<Element<'_, Message>> {
         vec![views::brand(&self.pal)]
+    }
+
+    fn header_end(&self) -> Vec<Element<'_, Message>> {
+        vec![views::quit_button(&self.pal)]
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -518,6 +529,17 @@ impl Application for App {
                 }
                 self.kill_result = Some(result);
             }
+            Message::AskQuitAll => self.confirm_quit = true,
+            Message::CancelQuitAll => self.confirm_quit = false,
+            Message::QuitAll => {
+                self.confirm_quit = false;
+                // The marker first, so a face's retry cannot start the daemon
+                // again between its exit and this window's.
+                match masthead_core::quit::set() {
+                    Ok(()) => self.send(Req::QuitAll),
+                    Err(e) => self.error = Some(format!("Could not quit Masthead: {e}")),
+                }
+            }
             Message::OpenDiskUsage => {
                 self.select(Page::DiskUsage);
                 return self.scan_if_new();
@@ -535,6 +557,9 @@ impl Application for App {
     }
 
     fn dialog(&self) -> Option<Element<'_, Message>> {
+        if self.confirm_quit {
+            return Some(views::quit_dialog());
+        }
         self.kill.as_ref().map(views::kill_dialog).or_else(|| views::disk_page::dialog(self))
     }
 

@@ -64,6 +64,11 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        None if masthead_core::quit::requested() => {
+            // The user quit from the window; it clears this when reopened.
+            // systemd's ConditionPathExists stops most starts before here.
+            ::log::info!("not starting: Masthead was quit in this session");
+        }
         None => {
             let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().expect("tokio runtime");
             if let Err(e) = rt.block_on(run()) {

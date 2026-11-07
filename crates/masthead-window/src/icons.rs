@@ -35,6 +35,9 @@ fn source(name: &str) -> &'static str {
         "kill" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>"##
         }
+        "power" => {
+            r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round"><path d="M8 2v5.5"/><path d="M4.6 4.2a5 5 0 1 0 6.8 0"/></svg>"##
+        }
         "folder" => {
             r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="#000" stroke-width="1.5" stroke-linejoin="round"><path d="M2 4.5c0-.8.6-1.5 1.4-1.5h2.8l1.4 1.6h5c.8 0 1.4.6 1.4 1.4v5.9c0 .8-.6 1.4-1.4 1.4H3.4c-.8 0-1.4-.6-1.4-1.4z"/></svg>"##
         }
@@ -48,7 +51,7 @@ fn source(name: &str) -> &'static str {
     }
 }
 
-/// A handle for a metric's icon, or `processes`, `settings`, `kill`, `folder` or `trash`.
+/// A handle for a metric's icon, or `processes`, `settings`, `kill`, `power`, `folder` or `trash`.
 pub fn handle(name: &str) -> svg::Handle {
     svg::Handle::from_memory(source(name).as_bytes())
 }
@@ -68,7 +71,7 @@ mod tests {
 
     #[test]
     fn every_icon_is_svg() {
-        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings", "kill", "folder", "trash"]);
+        let names = MetricId::ALL.iter().map(|m| m.as_str()).chain(["processes", "settings", "kill", "power", "folder", "trash"]);
         for n in names {
             assert!(source(n).starts_with("<svg"), "{n}");
         }

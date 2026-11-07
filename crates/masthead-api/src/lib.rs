@@ -76,6 +76,10 @@ pub trait Masthead {
     /// Replace the configuration (JSON). Validated, written to disk, applied.
     fn set_config(&self, json: &str) -> zbus::Result<()>;
 
+    /// Exit after replying. Used by Quit Masthead, which first writes the
+    /// session's quit marker so nothing starts the daemon again.
+    fn quit(&self) -> zbus::Result<()>;
+
     /// Bar items, sent only when a text or level changed.
     #[zbus(signal)]
     fn panel(&self, items: Vec<PanelItem>) -> zbus::Result<()>;

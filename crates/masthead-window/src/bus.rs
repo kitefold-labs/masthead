@@ -69,6 +69,8 @@ pub enum Req {
     /// the window, so pages that are expensive to draw ask for fewer.
     DetailEvery(u32),
     Quit,
+    /// Ask the daemon to exit, then exit. Quit Masthead.
+    QuitAll,
 }
 
 /// The receiving end of the event channel, taken once by the UI subscription.
@@ -181,7 +183,7 @@ async fn run(
     loop {
         match rx.recv().await {
             Some(Req::Start) => break,
-            Some(Req::Quit) | None => std::process::exit(0),
+            Some(Req::Quit | Req::QuitAll) | None => std::process::exit(0),
             Some(_) => {}
         }
     }
@@ -261,6 +263,12 @@ async fn run(
                 Some(Req::Sparks) => send_sparks(&daemon, &tx).await,
                 Some(Req::DetailEvery(n)) => every = n.max(1),
                 Some(Req::Start) => {}
+                Some(Req::QuitAll) => {
+                    if let Err(e) = daemon.quit().await {
+                        eprintln!("masthead-window: daemon did not quit: {e}");
+                    }
+                    std::process::exit(0);
+                }
                 Some(Req::Quit) | None => {
                     if let Some(h) = handle {
                         let _ = tokio::time::timeout(Duration::from_millis(300), daemon.unsubscribe(h)).await;

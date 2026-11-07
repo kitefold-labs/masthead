@@ -172,6 +172,7 @@ export default class MastheadExtension extends Extension {
             onConfig: json => this._onConfig(json),
             onMissing: () => this._showMissing(),
             onStopped: () => this._onStopped(),
+            onQuit: () => this._onQuit(),
         });
         this._client.start();
     }
@@ -241,6 +242,12 @@ export default class MastheadExtension extends Extension {
         this._closePopover();
         for (const item of this._items?.values() ?? [])
             item.add_style_class_name('masthead-dim');
+    }
+
+    /** The user quit Masthead: leave the bar until it is started again. */
+    _onQuit() {
+        this._closePopover();
+        this._destroyItems();
     }
 
     _onConfig(json) {
