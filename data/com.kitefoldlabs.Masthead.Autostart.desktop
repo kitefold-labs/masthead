@@ -1,0 +1,16 @@
+# Copyright 2026 Kitefold Labs
+# SPDX-License-Identifier: Apache-2.0
+#
+# Starts the daemon at login on desktops that show Masthead as tray items.
+# GNOME, COSMIC and bars start it themselves when their face subscribes.
+
+[Desktop Entry]
+Type=Application
+Name=Masthead
+Comment=System statistics in the tray
+Exec=@bindir@/masthead-daemon --activate
+Icon=com.kitefoldlabs.Masthead
+Terminal=false
+NoDisplay=true
+OnlyShowIn=KDE;XFCE;X-Cinnamon;MATE;Budgie;
+X-GNOME-Autostart-Phase=Applications

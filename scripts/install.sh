@@ -22,8 +22,14 @@ bindir="$PREFIX/bin"
 datadir="$PREFIX/share"
 if [ "$USER_INSTALL" = 1 ]; then
     systemd_user="$HOME/.config/systemd/user"
+    autostart="${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
 else
     systemd_user="$PREFIX/lib/systemd/user"
+    if [ "$PREFIX" = /usr ]; then
+        autostart=/etc/xdg/autostart
+    else
+        autostart="$PREFIX/etc/xdg/autostart"
+    fi
 fi
 ext_uuid="masthead@kitefoldlabs.com"
 
@@ -35,6 +41,7 @@ files=(
     "$datadir/dbus-1/services/com.kitefoldlabs.Masthead1.service"
     "$datadir/dbus-1/services/com.kitefoldlabs.Masthead.Window.service"
     "$systemd_user/masthead.service"
+    "$autostart/com.kitefoldlabs.Masthead.Autostart.desktop"
     "$datadir/applications/com.kitefoldlabs.Masthead.desktop"
     "$datadir/applications/com.kitefoldlabs.Masthead.CosmicApplet.desktop"
     "$datadir/icons/hicolor/scalable/apps/com.kitefoldlabs.Masthead.CosmicApplet-symbolic.svg"
@@ -85,6 +92,13 @@ put "$tmp/b" "$datadir/dbus-1/services/com.kitefoldlabs.Masthead.Window.service"
 put "$tmp/c" "$systemd_user/masthead.service"
 subst data/com.kitefoldlabs.Masthead.desktop >"$tmp/e"
 put "$tmp/e" "$datadir/applications/com.kitefoldlabs.Masthead.desktop"
+# Turning off the login item in the desktop's settings writes Hidden=true into
+# this file; a reinstall keeps that choice.
+auto="$DESTDIR$autostart/com.kitefoldlabs.Masthead.Autostart.desktop"
+if ! grep -qx 'Hidden=true' "$auto" 2>/dev/null; then
+    subst data/com.kitefoldlabs.Masthead.Autostart.desktop >"$tmp/f"
+    put "$tmp/f" "$autostart/com.kitefoldlabs.Masthead.Autostart.desktop"
+fi
 if [ -f crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop ]; then
     subst crates/masthead-cosmic/data/com.kitefoldlabs.Masthead.CosmicApplet.desktop >"$tmp/d"
     put "$tmp/d" "$datadir/applications/com.kitefoldlabs.Masthead.CosmicApplet.desktop"

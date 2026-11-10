@@ -19,11 +19,14 @@ just uninstall
 | `masthead-daemon`, `masthead-window`, `masthead-bar`, `masthead-cosmic` | `~/.local/bin` |
 | D-Bus activation files for the daemon and the window | `~/.local/share/dbus-1/services` |
 | `masthead.service` (systemd user unit) | `~/.config/systemd/user` |
+| Login autostart entry for tray desktops | `~/.config/autostart` (`/etc/xdg/autostart` in the `.deb`) |
 | Desktop entries, icons, AppStream metadata | `~/.local/share/...` |
 | GNOME Shell extension | `~/.local/share/gnome-shell/extensions/masthead@kitefoldlabs.com` |
 
 Nothing needs enabling for the daemon: the first face that subscribes starts
-it through D-Bus activation, and systemd restarts it if it fails. The unit
+it through D-Bus activation, and systemd restarts it if it fails. On the tray
+desktops, which have no face to do that, the autostart entry starts it at
+login. The unit
 also caps it at 5% of a core and 128 MB, far above its budget, so a fault
 cannot hurt the session.
 
@@ -81,11 +84,15 @@ Clicks open the window on the clicked metric.
 
 ### KDE Plasma, XFCE, Cinnamon, MATE, Budgie
 
-Nothing to configure. When no native face is running and the desktop has a
-tray (a StatusNotifierWatcher), the daemon shows one tray item per bar metric,
-with the value drawn into the icon and details in the tooltip. Click opens the
-window; right-click opens its settings. `[tray] mode` in the config can force
-it on or off.
+Nothing to configure. The autostart entry starts the daemon at login. When no
+native face is running and the desktop has a tray (a StatusNotifierWatcher),
+the daemon shows one tray item per bar metric, with the value drawn into the
+icon and details in the tooltip. Click opens the window; right-click opens its
+settings. `[tray] mode` in the config can force it on or off.
+
+To stop Masthead starting at login, turn off *Masthead* in the desktop's
+autostart settings (System Settings → Autostart in Plasma, Session and Startup
+in XFCE, Startup Applications elsewhere). Reinstalling keeps that choice.
 
 ## Packages
 

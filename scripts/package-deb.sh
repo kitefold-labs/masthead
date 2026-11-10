@@ -15,6 +15,8 @@ install -D -m 644 LICENSE "$stage/usr/share/doc/masthead/copyright"
 
 size=$(du -sk "$stage" | cut -f1)
 mkdir -p "$stage/DEBIAN"
+# dpkg keeps local edits to files under /etc, such as Hidden=true.
+(cd "$stage" && find etc -type f | sed 's|^|/|') >"$stage/DEBIAN/conffiles"
 cat >"$stage/DEBIAN/control" <<CONTROL
 Package: masthead
 Version: $version
