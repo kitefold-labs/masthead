@@ -39,6 +39,8 @@ log = { version = "0.4", features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tempfile = "3"
 rayon = "1.12"
+# No gzip: compressed transfers would overstate the speed test's rates.
+ureq = { version = "3.5", default-features = false, features = ["rustls"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

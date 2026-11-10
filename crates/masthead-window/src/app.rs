@@ -10,6 +10,7 @@ use crate::disk::{Disk, DiskMsg};
 use crate::kill::{self, Signal, Target};
 use crate::model::{self, Page, Range, Series, Sort, SortKey};
 use crate::palette::{self, Palette};
+use crate::speedtest::{Speed, SpeedMsg};
 use crate::views;
 use cosmic::app::{Core, Task};
 use cosmic::iced::{Length, Subscription};
@@ -69,6 +70,7 @@ pub enum Message {
     /// Opens the Disk usage page, scanning if it has not yet.
     OpenDiskUsage,
     Disk(DiskMsg),
+    Speed(SpeedMsg),
 }
 
 /// Startup state handed to [`App::init`].
@@ -120,6 +122,7 @@ pub struct App {
     /// The Quit Masthead confirmation is open.
     pub confirm_quit: bool,
     pub disk: Disk,
+    pub speed: Speed,
     requests: UnboundedSender<Req>,
 }
 
@@ -348,6 +351,7 @@ impl Application for App {
             held_order: None,
             confirm_quit: false,
             disk: Disk::default(),
+            speed: Speed::default(),
             requests: flags.requests,
         };
         app.send(Req::Start);
@@ -372,13 +376,15 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let bus = Subscription::run(events);
+        let mut subs = vec![Subscription::run(events)];
+        let every = || cosmic::iced::time::every(std::time::Duration::from_millis(250));
         if self.disk.scanning() {
-            let tick = cosmic::iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::Disk(DiskMsg::Tick));
-            Subscription::batch([bus, tick])
-        } else {
-            bus
+            subs.push(every().map(|_| Message::Disk(DiskMsg::Tick)));
         }
+        if self.speed.running() {
+            subs.push(every().map(|_| Message::Speed(SpeedMsg::Tick)));
+        }
+        Subscription::batch(subs)
     }
 
     fn on_close_requested(&self, _id: cosmic::iced::window::Id) -> Option<Message> {
@@ -545,6 +551,7 @@ impl Application for App {
                 return self.scan_if_new();
             }
             Message::Disk(m) => return self.disk.update(m),
+            Message::Speed(m) => return self.speed.update(m),
             Message::HoldRows(hold) => {
                 self.held_order = hold.then(|| {
                     let mut procs = self.procs.clone();
