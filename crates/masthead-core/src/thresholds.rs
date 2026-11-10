@@ -7,7 +7,9 @@ use crate::Level;
 use serde::{Deserialize, Serialize};
 
 /// Values at or above `warn` are amber, at or above `crit` red. Units are the
-/// metric's own: percent for CPU, GPU and memory, °C for temperature.
+/// metric's own: percent for CPU, GPU and memory, °C for temperature. Disk is
+/// the percent of each filesystem's space used, and only colors the window's
+/// space meters; the Disk bar item shows I/O rates and is never colored.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Threshold {
     pub warn: f64,

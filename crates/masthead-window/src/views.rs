@@ -16,7 +16,7 @@ use cosmic::iced::widget::{Space, button, canvas, column, container, keyed_colum
 use cosmic::iced::{Alignment, Background, Border, Color, Font, Length, Padding};
 use masthead_api::detail::{GpuDetail, ProcDetail};
 use masthead_core::config::{BarStyle, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
-use masthead_core::{MetricId, format};
+use masthead_core::{Level, MetricId, format};
 
 const fn font(family: &'static str, weight: Weight) -> Font {
     Font { family: Family::Name(family), weight, stretch: Stretch::Normal, style: FontStyle::Normal }
@@ -584,14 +584,13 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                 col = col.push(tbl);
                 if !x.filesystems.is_empty() {
                     col = col.push(eyebrow("Space", &p));
+                    let space = app.config.as_ref().and_then(|c| c.threshold(MetricId::Disk));
                     for f in &x.filesystems {
                         let frac = if f.total > 0 { f.used as f64 / f.total as f64 } else { 0.0 };
-                        let c = if frac >= 0.95 {
-                            p.danger
-                        } else if frac >= 0.9 {
-                            p.warning
-                        } else {
-                            p.accent
+                        let c = match space.map(|s| s.level(frac * 100.0, Level::Normal)) {
+                            Some(Level::Crit) => p.danger,
+                            Some(Level::Warn) => p.warning,
+                            _ => p.accent,
                         };
                         col = col.push(
                             column![
@@ -1031,7 +1030,7 @@ fn settings_page(app: &App) -> El<'_> {
     }
     thresholds.push(
         row![
-            t("Leave both empty for no threshold. Memory is a share of total.", 12.0, SANS, p.fg_muted),
+            t("Leave both empty for no threshold. Memory is a share of total; disk is space used per filesystem.", 12.0, SANS, p.fg_muted),
             fill(),
             small_button("Apply", Some(Message::ApplyThresholds), p)
         ]
