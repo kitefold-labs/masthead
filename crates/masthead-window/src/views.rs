@@ -9,6 +9,7 @@ use crate::icons;
 use crate::kill::{Signal, Target};
 use crate::model::{self, Page, Range, SortKey};
 use crate::palette::Palette;
+use crate::speedtest::{self, Phase, SpeedMsg};
 use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
@@ -562,6 +563,7 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                     ));
                 }
             }
+            col = col.push(speed_test_card(app));
         }
         MetricId::Disk => {
             if let Some(x) = &d.disk {
@@ -743,6 +745,48 @@ fn disk_usage_card(app: &App) -> El<'_> {
     .padding([12, 14])
     .width(Length::Fill)
     .into()
+}
+
+/// The Network page's speed test: a button, the live rate while it runs and
+/// the last result.
+fn speed_test_card(app: &App) -> El<'_> {
+    let p = app.pal;
+    let units = app.units().network;
+    let s = &app.speed;
+    let about = format!(
+        "Measures latency, download and upload against Cloudflare ({}). A run takes up to 20 seconds and transfers up to 200 MB.",
+        speedtest::HOST
+    );
+    let mut info = column![t("Speed test", 14.0, BOLD, p.fg)].spacing(3).width(Length::Fill);
+    let button = if let Some(live) = &s.live {
+        let now = match live.now() {
+            Some((Phase::Download, r)) => format!("Testing download · {}", format::rate(r, units, false)),
+            Some((Phase::Upload, r)) => format!("Testing upload · {}", format::rate(r, units, false)),
+            Some((Phase::Latency, _)) | None => "Testing latency…".to_owned(),
+        };
+        info = info.push(t(now, 12.0, MONO, p.fg));
+        small_button("Stop", Some(Message::Speed(SpeedMsg::Stop)), p)
+    } else {
+        match &s.result {
+            Some(Ok(o)) => {
+                let ms = |d: std::time::Duration| format!("{:.0} ms", d.as_secs_f64() * 1000.0);
+                info = info.push(
+                    row![
+                        kv("Download", format::rate(o.down, units, false), &p),
+                        kv("Upload", format::rate(o.up, units, false), &p),
+                        kv("Latency", format!("{} ± {}", ms(o.latency), ms(o.jitter)), &p),
+                    ]
+                    .spacing(24),
+                );
+            }
+            Some(Err(e)) => info = info.push(t(e.clone(), 12.0, SANS, p.danger)),
+            None => {}
+        }
+        info = info.push(t(about, 12.0, SANS, p.fg_muted));
+        let label = if s.result.is_some() { "Run again" } else { "Run speed test" };
+        small_button(label, Some(Message::Speed(SpeedMsg::Start)), p)
+    };
+    boxed(row![info, button].spacing(16).align_y(Alignment::Center), p, p.surface).padding([12, 14]).width(Length::Fill).into()
 }
 
 // ----------------------------------------------------------------------------

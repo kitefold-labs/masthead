@@ -38,6 +38,11 @@ per-device detail, a process table that can end processes, and settings.
 Ending another user's process, such as root's, asks for your password through
 polkit.
 
+The Network page has a speed test that measures latency, download and upload
+against Cloudflare (speed.cloudflare.com). It runs only when you press its
+button, takes up to 20 seconds and transfers up to 200 MB. Masthead makes no
+other network requests.
+
 The Disk page's **Disk usage** scans every local filesystem and shows what
 uses the space as a map you can click through, with a ranked list beside it.
 Its Clean up tab lists space that can be reclaimed:

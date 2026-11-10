@@ -15,6 +15,7 @@ mod icons;
 mod kill;
 mod model;
 mod palette;
+mod speedtest;
 mod treemap;
 mod views;
 
