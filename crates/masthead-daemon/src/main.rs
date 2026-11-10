@@ -39,6 +39,8 @@ const USAGE: &str = "masthead-daemon — samples system statistics for Masthead'
 
 USAGE:
     masthead-daemon            Run on the session bus (normally started by D-Bus activation)
+    masthead-daemon --activate Ask the session bus to start the daemon, then exit
+                               (what the login autostart entry runs)
     masthead-daemon --print    Sample twice, print bar items and full detail as JSON, exit
     masthead-daemon --version
 
@@ -58,6 +60,12 @@ fn main() {
     match arg.as_deref() {
         Some("--version" | "-V") => println!("masthead-daemon {}", env!("CARGO_PKG_VERSION")),
         Some("--help" | "-h") => println!("{USAGE}"),
+        Some("--activate") => {
+            if let Err(e) = activate() {
+                eprintln!("masthead-daemon: {e}");
+                std::process::exit(1);
+            }
+        }
         Some("--print") => {
             if let Err(e) = print_once() {
                 eprintln!("masthead-daemon: {e}");
@@ -86,6 +94,18 @@ fn main() {
 
 fn unix_now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
+/// Start the daemon through D-Bus activation, so on systemd it runs under
+/// `masthead.service` with that unit's limits and restart policy.
+fn activate() -> Result<(), Box<dyn std::error::Error>> {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+    rt.block_on(async {
+        let conn = Connection::session().await?;
+        let name = zbus::names::WellKnownName::try_from(masthead_api::BUS_NAME)?;
+        zbus::fdo::DBusProxy::new(&conn).await?.start_service_by_name(name, 0).await?;
+        Ok(())
+    })
 }
 
 fn print_once() -> Result<(), Box<dyn std::error::Error>> {
