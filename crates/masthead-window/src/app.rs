@@ -20,6 +20,7 @@ use masthead_core::MetricId;
 use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
 use masthead_core::thresholds::Threshold;
 use std::collections::{BTreeMap, HashMap};
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
 pub const APP_ID: &str = "com.kitefoldlabs.Masthead";
@@ -31,6 +32,16 @@ pub const PROCESS_EVERY: u32 = 3;
 
 /// Detail samples between refetches of 1-minute history for the 1 h range.
 const COARSE_REFRESH: u32 = 60;
+
+/// A Toggle this soon after the window opened or changed page is the second
+/// click of a double click, not a request to close. GNOME's default
+/// double-click time is 400 ms.
+const DOUBLE_CLICK: Duration = Duration::from_millis(500);
+
+/// Whether a Toggle for the page already showing closes the window.
+fn toggle_closes(since_shown: Duration) -> bool {
+    since_shown >= DOUBLE_CLICK
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -121,6 +132,8 @@ pub struct App {
     pub confirm_quit: bool,
     pub disk: Disk,
     requests: UnboundedSender<Req>,
+    /// When a Toggle or Show last opened the window or changed its page.
+    shown_at: Instant,
 }
 
 /// Dark or light, from the theme setting and the desktop's preference.
@@ -349,6 +362,7 @@ impl Application for App {
             confirm_quit: false,
             disk: Disk::default(),
             requests: flags.requests,
+            shown_at: Instant::now(),
         };
         app.send(Req::Start);
         if app.page == Page::Processes {
@@ -391,15 +405,20 @@ impl Application for App {
         match message {
             Message::Bus(ev) => match ev {
                 Event::Command(Command::Toggle(p)) => {
-                    if p == self.page {
+                    if p != self.page {
+                        self.select(p);
+                        self.shown_at = Instant::now();
+                        return Task::batch([self.raise(), self.scan_if_new()]);
+                    }
+                    if toggle_closes(self.shown_at.elapsed()) {
                         self.send(Req::Quit);
                     } else {
-                        self.select(p);
-                        return Task::batch([self.raise(), self.scan_if_new()]);
+                        return self.raise();
                     }
                 }
                 Event::Command(Command::Show(p)) => {
                     self.select(p);
+                    self.shown_at = Instant::now();
                     return Task::batch([self.raise(), self.scan_if_new()]);
                 }
                 Event::Describe(d) => {
@@ -605,6 +624,14 @@ pub fn parse_thresholds(drafts: &BTreeMap<MetricId, (String, String)>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn double_click_does_not_close() {
+        assert!(!toggle_closes(Duration::ZERO));
+        assert!(!toggle_closes(Duration::from_millis(400)));
+        assert!(toggle_closes(DOUBLE_CLICK));
+        assert!(toggle_closes(Duration::from_secs(2)));
+    }
 
     #[test]
     fn theme_setting_overrides_the_desktop() {
