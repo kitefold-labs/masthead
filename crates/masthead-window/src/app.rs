@@ -79,6 +79,8 @@ pub struct Flags {
     pub dark: bool,
     /// The theme setting, read from the config file before the first frame.
     pub theme: Theme,
+    /// Square corners, for a window that cannot be transparent.
+    pub sharp_corners: bool,
     pub requests: UnboundedSender<Req>,
 }
 
@@ -320,6 +322,7 @@ impl Application for App {
         core.window.header_title = String::new();
         core.window.show_maximize = true;
         core.window.content_container = false;
+        core.window.sharp_corners = flags.sharp_corners;
         let mut app = App {
             core,
             pal: Palette::for_dark(effective_dark(flags.theme, flags.dark)),
