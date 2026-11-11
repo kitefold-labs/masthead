@@ -178,6 +178,7 @@ pub fn default_thresholds() -> BTreeMap<MetricId, Threshold> {
     BTreeMap::from([
         (MetricId::Cpu, Threshold { warn: 85.0, crit: 95.0 }),
         (MetricId::Mem, Threshold { warn: 90.0, crit: 95.0 }),
+        (MetricId::Disk, Threshold { warn: 90.0, crit: 95.0 }),
         (MetricId::Temp, Threshold { warn: 80.0, crit: 90.0 }),
     ])
 }
@@ -274,6 +275,7 @@ mod tests {
         assert_eq!(c.units.network, NetworkUnits::Bits);
         assert_eq!(c.threshold(MetricId::Cpu), Some(Threshold { warn: 70.0, crit: 90.0 }));
         assert_eq!(c.threshold(MetricId::Temp), Some(Threshold { warn: 80.0, crit: 90.0 }));
+        assert_eq!(c.threshold(MetricId::Disk), Some(Threshold { warn: 90.0, crit: 95.0 }));
         assert_eq!(c.threshold(MetricId::Net), None);
     }
 

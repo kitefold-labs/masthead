@@ -151,7 +151,7 @@ pub fn effective_dark(theme: Theme, system_dark: bool) -> bool {
 }
 
 /// Bar metrics the thresholds editor offers.
-pub const THRESHOLD_METRICS: [MetricId; 4] = [MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Temp];
+pub const THRESHOLD_METRICS: [MetricId; 5] = [MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Disk, MetricId::Temp];
 
 pub const STYLE_OPTIONS: [&str; 3] = ["Values", "Values and trend", "Compact trend"];
 pub const MEM_OPTIONS: [&str; 2] = ["Binary (GiB)", "Decimal (GB)"];

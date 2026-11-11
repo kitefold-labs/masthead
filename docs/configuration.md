@@ -23,6 +23,10 @@ temperature = "celsius"   # celsius | fahrenheit
 warn = 85
 crit = 95
 
+[thresholds.disk]         # % of a filesystem's space used; colors the
+warn = 90                 # window's space meters, not the Disk bar item
+crit = 95
+
 [devices]
 gpu = "auto"              # or a PCI address: "0000:01:00.0"
 temperature = "auto"      # or "chip/label": "k10temp/Tctl"
