@@ -586,14 +586,9 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
                 col = col.push(tbl);
                 if !x.filesystems.is_empty() {
                     col = col.push(eyebrow("Space", &p));
-                    let space = app.config.as_ref().and_then(|c| c.threshold(MetricId::Disk));
                     for f in &x.filesystems {
                         let frac = if f.total > 0 { f.used as f64 / f.total as f64 } else { 0.0 };
-                        let c = match space.map(|s| s.level(frac * 100.0, Level::Normal)) {
-                            Some(Level::Crit) => p.danger,
-                            Some(Level::Warn) => p.warning,
-                            _ => p.accent,
-                        };
+                        let c = space_color(app, frac);
                         col = col.push(
                             column![
                                 row![
@@ -717,6 +712,16 @@ fn gpu_card<'a>(g: &GpuDetail, p: &Palette, u: masthead_core::config::Units) -> 
     }
     col = col.push(t(format!("{} · {}", g.driver, g.pci), 11.0, MONO, p.fg_dim));
     boxed(col, *p, p.surface).padding([10, 12]).width(Length::Fill).into()
+}
+
+/// The meter color for a filesystem `frac` full, by the Disk threshold.
+fn space_color(app: &App, frac: f64) -> Color {
+    let p = app.pal;
+    match app.config.as_ref().and_then(|c| c.threshold(MetricId::Disk)).map(|s| s.level(frac * 100.0, Level::Normal)) {
+        Some(Level::Crit) => p.danger,
+        Some(Level::Warn) => p.warning,
+        _ => p.accent,
+    }
 }
 
 /// The Disk page's way into the disk map and cleanup.

@@ -83,10 +83,30 @@ pub fn points() -> std::collections::HashSet<PathBuf> {
         .unwrap_or_default()
 }
 
+/// The mount in `mounts` that holds `p`: the longest mount path `p` is under.
+pub fn holding<'a>(mounts: &'a [Mount], p: &std::path::Path) -> Option<&'a Mount> {
+    mounts.iter().filter(|m| p.starts_with(&m.path)).max_by_key(|m| m.path.as_os_str().len())
+}
+
+/// A filesystem's size and use, in bytes, as `df` reports them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Space {
+    pub total: u64,
+    pub used: u64,
+    /// What an unprivileged user can still write. Blocks reserved for root
+    /// count in neither `used` nor `free`.
+    pub free: u64,
+}
+
+/// Size and use of the filesystem holding `path`.
+pub fn space(path: &std::path::Path) -> Option<Space> {
+    let s = rustix::fs::statvfs(path).ok()?;
+    Some(Space { total: s.f_blocks * s.f_frsize, used: s.f_blocks.saturating_sub(s.f_bfree) * s.f_frsize, free: s.f_bavail * s.f_frsize })
+}
+
 /// Bytes a filesystem reports as used.
 pub fn used(path: &std::path::Path) -> Option<u64> {
-    let s = rustix::fs::statvfs(path).ok()?;
-    Some(s.f_blocks.saturating_sub(s.f_bfree) * s.f_frsize)
+    space(path).map(|s| s.used)
 }
 
 #[cfg(test)]
@@ -108,5 +128,16 @@ mod tests {
         let paths: Vec<_> = m.iter().map(|m| m.path.to_string_lossy().into_owned()).collect();
         assert_eq!(paths, ["/", "/boot/efi", "/media/My Disk"]);
         assert_eq!(m[2].fstype, "exfat");
+
+        let at = |p: &str| holding(&m, std::path::Path::new(p)).map(|m| m.path.to_string_lossy().into_owned());
+        assert_eq!(at("/boot/efi/EFI").as_deref(), Some("/boot/efi"));
+        assert_eq!(at("/boot/vmlinuz").as_deref(), Some("/"));
+        assert_eq!(at("/media/My Disk/x").as_deref(), Some("/media/My Disk"));
+    }
+
+    #[test]
+    fn space_of_root() {
+        let s = space(std::path::Path::new("/")).unwrap();
+        assert!(s.total > 0 && s.used + s.free <= s.total, "{s:?}");
     }
 }

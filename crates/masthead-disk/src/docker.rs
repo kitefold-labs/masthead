@@ -4,7 +4,7 @@
 //! A small client for the Docker Engine API over its Unix socket. Podman's
 //! Docker-compatible socket works too.
 //!
-//! Only what disk cleanup needs: `GET /system/df`, removing images,
+//! Only what disk cleanup needs: `GET /system/df` and `GET /info`, removing images,
 //! containers and volumes, and pruning the build cache. Requests are plain
 //! HTTP/1.1 with `Connection: close`, so no HTTP library is needed.
 
@@ -143,6 +143,19 @@ impl Docker {
     pub fn df(&self) -> Result<Df, String> {
         let body = self.call("GET", "/system/df", Duration::from_mins(5))?;
         serde_json::from_slice(&body).map_err(|e| format!("{} returned unexpected data: {e}", self.engine))
+    }
+
+    /// Where the engine keeps images, containers and volumes.
+    pub fn root_dir(&self) -> Result<PathBuf, String> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "PascalCase")]
+        struct Info {
+            docker_root_dir: PathBuf,
+        }
+        let body = self.call("GET", "/info", Duration::from_secs(30))?;
+        serde_json::from_slice::<Info>(&body)
+            .map(|i| i.docker_root_dir)
+            .map_err(|e| format!("{} returned unexpected data: {e}", self.engine))
     }
 
     /// Removes an image by tag or ID. Refuses images a container uses.
