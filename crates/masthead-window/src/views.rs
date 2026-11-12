@@ -989,10 +989,9 @@ fn settings_page(app: &App) -> El<'_> {
     let head =
         column![t("Settings", 21.0, BOLD, p.fg), t("Changes apply to every Masthead bar immediately", 11.5, MONO, p.fg_muted)].spacing(3);
 
-    // Bar metrics: enabled ones in bar order, then the rest.
+    // Bar metrics in a fixed row order; toggling one does not move it.
     let avail = app.metrics();
-    let mut order: Vec<MetricId> = cfg.bar.metrics.iter().copied().filter(|m| avail.contains(m)).collect();
-    order.extend(avail.iter().copied().filter(|m| !cfg.bar.metrics.contains(m)));
+    let order: Vec<MetricId> = app.bar_rows.iter().copied().filter(|m| avail.contains(m)).collect();
     let mut bar_rows: Vec<El<'_>> = Vec::new();
     for m in order {
         let on = cfg.bar.metrics.contains(&m);

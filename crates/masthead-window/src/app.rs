@@ -122,6 +122,9 @@ pub struct App {
     pub procs: Vec<masthead_api::detail::ProcDetail>,
     pub thresholds: BTreeMap<MetricId, (String, String)>,
     pub hold: String,
+    /// Row order of Settings → Bar, every metric. Turning a metric on or off
+    /// leaves it unchanged.
+    pub bar_rows: Vec<MetricId>,
     pub error: Option<String>,
     /// The process awaiting confirmation in the kill dialog.
     pub kill: Option<Target>,
@@ -256,6 +259,7 @@ impl App {
             })
             .collect();
         self.hold = c.notifications.hold_seconds.to_string();
+        self.bar_rows = model::settings_rows(&self.bar_rows, &c.bar.metrics);
         self.config = Some(c);
     }
 
@@ -360,6 +364,7 @@ impl Application for App {
             procs: Vec::new(),
             thresholds: BTreeMap::new(),
             hold: String::new(),
+            bar_rows: Vec::new(),
             error: None,
             kill: None,
             killing: false,
@@ -475,16 +480,23 @@ impl Application for App {
             }
             Message::Sort(k) => self.sort = self.sort.click(k),
             Message::Filter(f) => self.filter = f,
-            Message::BarMetric(m, on) => self.edit(|c| {
-                if on {
-                    if !c.bar.metrics.contains(&m) {
-                        c.bar.metrics.push(m);
+            Message::BarMetric(m, on) => {
+                let rows = self.bar_rows.clone();
+                self.edit(|c| {
+                    if on {
+                        model::enable_metric(&mut c.bar.metrics, &rows, m);
+                    } else {
+                        c.bar.metrics.retain(|x| *x != m);
                     }
-                } else {
-                    c.bar.metrics.retain(|x| *x != m);
+                });
+            }
+            Message::MoveMetric(m, d) => {
+                let mut other = None;
+                self.edit(|c| other = model::move_metric(&mut c.bar.metrics, m, d));
+                if let Some(o) = other {
+                    model::swap_rows(&mut self.bar_rows, m, o);
                 }
-            }),
-            Message::MoveMetric(m, d) => self.edit(|c| model::move_metric(&mut c.bar.metrics, m, d)),
+            }
             Message::BarStyle(i) => self.edit(|c| c.bar.style = [BarStyle::Values, BarStyle::Trend, BarStyle::Compact][i.min(2)]),
             Message::MemUnits(i) => self.edit(|c| c.units.memory = if i == 0 { MemoryUnits::Binary } else { MemoryUnits::Decimal }),
             Message::NetUnits(i) => self.edit(|c| c.units.network = if i == 0 { NetworkUnits::Bytes } else { NetworkUnits::Bits }),
