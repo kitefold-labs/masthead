@@ -256,12 +256,43 @@ pub fn hold_order(procs: &mut [ProcDetail], order: &[u32]) {
     procs.sort_by_key(|p| order.iter().position(|&pid| pid == p.pid).unwrap_or(usize::MAX));
 }
 
-/// Move `m` one place up (`-1`) or down (`+1`) in the bar order.
-pub fn move_metric(list: &mut [MetricId], m: MetricId, delta: i32) {
-    let Some(i) = list.iter().position(|x| *x == m) else { return };
-    let Some(j) = i.checked_add_signed(delta as isize) else { return };
-    if j < list.len() {
-        list.swap(i, j);
+/// Move `m` one place up (`-1`) or down (`+1`) in the bar order. Returns the
+/// metric it swapped places with.
+pub fn move_metric(list: &mut [MetricId], m: MetricId, delta: i32) -> Option<MetricId> {
+    let i = list.iter().position(|x| *x == m)?;
+    let j = i.checked_add_signed(delta as isize).filter(|j| *j < list.len())?;
+    list.swap(i, j);
+    Some(list[i])
+}
+
+/// Row order for Settings → Bar: every metric, with those in `bar` in bar
+/// order. Keeps `prev` while it agrees with `bar`, so turning a metric on or
+/// off leaves every row in place. Otherwise the bar's metrics come first and
+/// the rest follow in [`MetricId::ALL`] order.
+pub fn settings_rows(prev: &[MetricId], bar: &[MetricId]) -> Vec<MetricId> {
+    let agrees = prev.len() == MetricId::ALL.len() && prev.iter().filter(|m| bar.contains(m)).eq(bar.iter());
+    if agrees {
+        return prev.to_vec();
+    }
+    let mut rows = bar.to_vec();
+    rows.extend(MetricId::ALL.into_iter().filter(|m| !bar.contains(m)));
+    rows
+}
+
+/// Add `m` to the bar at the place its row has in `rows`, so the bar order
+/// keeps matching the rows.
+pub fn enable_metric(bar: &mut Vec<MetricId>, rows: &[MetricId], m: MetricId) {
+    if bar.contains(&m) {
+        return;
+    }
+    let before = rows.iter().take_while(|x| **x != m).filter(|x| bar.contains(x)).count();
+    bar.insert(before.min(bar.len()), m);
+}
+
+/// Swap the rows of `a` and `b`.
+pub fn swap_rows(rows: &mut [MetricId], a: MetricId, b: MetricId) {
+    if let (Some(i), Some(j)) = (rows.iter().position(|x| *x == a), rows.iter().position(|x| *x == b)) {
+        rows.swap(i, j);
     }
 }
 
@@ -476,6 +507,40 @@ mod tests {
         assert_eq!(l[2], MetricId::Net);
         move_metric(&mut l, MetricId::Gpu, 1);
         assert_eq!(l.len(), 3);
+    }
+
+    #[test]
+    fn settings_rows_stay_put() {
+        use MetricId::{Battery, Cpu, Disk, Gpu, Mem, Net, Temp};
+        let mut bar = vec![Net, Cpu, Temp];
+        let mut rows = settings_rows(&[], &bar);
+        assert_eq!(rows, [Net, Cpu, Temp, Mem, Gpu, Disk, Battery]);
+
+        // Off and back on: same rows, same bar.
+        bar.retain(|m| *m != Cpu);
+        rows = settings_rows(&rows, &bar);
+        assert_eq!(rows, [Net, Cpu, Temp, Mem, Gpu, Disk, Battery]);
+        enable_metric(&mut bar, &rows, Cpu);
+        assert_eq!(bar, [Net, Cpu, Temp]);
+
+        // A metric turned on joins the bar where its row is.
+        enable_metric(&mut bar, &rows, Gpu);
+        assert_eq!(bar, [Net, Cpu, Temp, Gpu]);
+        bar.retain(|m| *m != Temp);
+        enable_metric(&mut bar, &rows, Mem);
+        assert_eq!(bar, [Net, Cpu, Mem, Gpu]);
+        rows = settings_rows(&rows, &bar);
+        assert_eq!(rows, [Net, Cpu, Temp, Mem, Gpu, Disk, Battery]);
+
+        // Moving swaps rows with the bar neighbour; Temp, off, stays put.
+        let other = move_metric(&mut bar, Mem, -1).unwrap();
+        assert_eq!(other, Cpu);
+        swap_rows(&mut rows, Mem, other);
+        assert_eq!(rows, [Net, Mem, Temp, Cpu, Gpu, Disk, Battery]);
+        assert_eq!(settings_rows(&rows, &bar), rows);
+
+        // A bar order from elsewhere that the rows disagree with rebuilds them.
+        assert_eq!(settings_rows(&rows, &[Cpu, Net]), [Cpu, Net, Mem, Gpu, Disk, Temp, Battery]);
     }
 
     #[test]
