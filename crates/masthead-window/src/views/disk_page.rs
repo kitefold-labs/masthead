@@ -75,19 +75,22 @@ pub fn page(app: &App) -> El<'_> {
         .spacing(16)
         .align_y(Alignment::Start);
 
-    let mut col = column![head].spacing(14);
+    // Rows that come and go stay inside `top`, so the scrollable below keeps
+    // its place among the page's children and with it its scroll position.
+    let mut top = column![head].spacing(14);
     if !d.space.is_empty() {
-        col = col.push(space(app));
+        top = top.push(space(app));
     }
     if let Some(m) = &d.message {
-        col = col.push(match m {
+        top = top.push(match m {
             Ok(s) => t(s.clone(), 12.5, SANS, p.success),
             Err(s) => t(s.clone(), 12.5, SANS, p.danger),
         });
     }
     let Some(scan) = &d.scan else {
-        return col.into();
+        return top.into();
     };
+    let mut col = column![top].spacing(14);
     let reclaim = d.reclaimable();
     let mut tabs = row![chip("Map", msg(DiskMsg::Tab(Tab::Map)), p, d.tab == Tab::Map)].spacing(2);
     tabs = tabs.push(chip(&format!("Clean up · {}", bytes(reclaim)), msg(DiskMsg::Tab(Tab::Cleanup)), p, d.tab == Tab::Cleanup));
