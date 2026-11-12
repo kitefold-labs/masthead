@@ -13,9 +13,10 @@ use crate::treemap;
 use cosmic::app::Task;
 use masthead_disk::docker::{Df, Docker};
 use masthead_disk::findings::{self, Action, Group, GroupId, Home};
+use masthead_disk::mounts::{self, Space};
 use masthead_disk::{Kind, Progress, Scan, scan, time};
 use masthead_disk::{child, clean};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Arc, Mutex};
@@ -41,7 +42,13 @@ pub enum DiskMsg {
     /// Redraws the scan progress.
     Tick,
     Scanned(Handoff),
-    Docker(Result<Df, String>),
+    /// The engine's usage and where it keeps its data. `resort` puts the
+    /// groups back in size order; without it they keep their places.
+    Docker {
+        df: Result<Df, String>,
+        root: Option<PathBuf>,
+        resort: bool,
+    },
     Tab(Tab),
     /// Opens the node at this index path.
     Go(Vec<usize>),
@@ -55,7 +62,8 @@ pub enum DiskMsg {
     Confirm,
     Dismiss,
     Trashed(PathBuf, Result<(), String>),
-    Cleaned(Vec<(Action, u64, Outcome)>),
+    /// One cleanup item finished: its action, listed size and outcome.
+    Cleaned(Action, u64, Outcome),
 }
 
 /// What the confirmation dialog asks about.
@@ -76,6 +84,26 @@ pub enum DockerState {
     Failed(String),
 }
 
+/// A confirmed cleanup. Items run one at a time, so each leaves the list as
+/// soon as it is done.
+#[derive(Debug, Default)]
+pub struct Cleaning {
+    queue: VecDeque<(Action, u64)>,
+    pub total: usize,
+    freed: u64,
+    trashed: u64,
+    trashed_count: usize,
+    failed: Vec<String>,
+    docker_changed: bool,
+}
+
+impl Cleaning {
+    /// The 1-based number of the item running now.
+    pub fn current(&self) -> usize {
+        self.total - self.queue.len()
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Disk {
     pub tab: Tab,
@@ -91,10 +119,22 @@ pub struct Disk {
     pub docker_groups: Vec<Group>,
     pub docker_state: DockerState,
     pub docker: Option<Docker>,
+    docker_root: Option<PathBuf>,
     pub selected: HashSet<Action>,
     pub expanded: HashSet<GroupId>,
+    /// Group order on the Cleanup tab, largest first when the findings
+    /// arrived. Groups keep their place while their items are cleaned up.
+    order: Vec<GroupId>,
     pub confirm: Option<Confirm>,
+    /// Set while a cleanup or a move to the Trash runs.
     pub busy: bool,
+    pub cleaning: Option<Cleaning>,
+    /// Filesystems that hold a cleanup item, picked when the findings
+    /// arrive so a row stays while its items are cleaned up.
+    space_mounts: Vec<PathBuf>,
+    /// Size and use of each of [`Self::space_mounts`], refreshed whenever
+    /// something is deleted.
+    pub space: Vec<(PathBuf, Space)>,
     pub message: Option<Result<String, String>>,
     pub map_cache: treemap::Cache,
     pub home: Option<Home>,
@@ -105,11 +145,50 @@ impl Disk {
         self.progress.is_some()
     }
 
-    /// Every group, largest first.
+    /// Every group, in [`Self::order`]. Groups that appeared since, such as
+    /// the Trash after moving files to it, come last.
     pub fn all_groups(&self) -> impl Iterator<Item = &Group> {
         let mut all: Vec<&Group> = self.docker_groups.iter().chain(&self.groups).collect();
-        all.sort_by_key(|g| std::cmp::Reverse(g.size()));
+        all.sort_by_key(|g| (self.order.iter().position(|o| *o == g.id).unwrap_or(usize::MAX), std::cmp::Reverse(g.size())));
         all.into_iter()
+    }
+
+    /// Fixes the group order, largest first, and the filesystems the space
+    /// rows show, from the findings as they are now.
+    fn arrange(&mut self) {
+        let local = mounts::local();
+        let mut all: Vec<&Group> = self.docker_groups.iter().chain(&self.groups).collect();
+        all.sort_by_key(|g| std::cmp::Reverse(g.size()));
+        let order = all.iter().map(|g| g.id).collect();
+        let held: HashSet<&Path> = all
+            .iter()
+            .flat_map(|g| &g.items)
+            .filter_map(|i| self.path_of(&i.action))
+            .filter_map(|p| mounts::holding(&local, &p))
+            .map(|m| m.path.as_path())
+            .collect();
+        self.space_mounts = local.iter().filter(|m| held.contains(m.path.as_path())).map(|m| m.path.clone()).collect();
+        self.order = order;
+        self.refresh_space();
+    }
+
+    /// Where the space `a` reclaims is.
+    fn path_of(&self, a: &Action) -> Option<PathBuf> {
+        let home = self.home.as_ref();
+        match a {
+            Action::DeleteCache(p) | Action::MoveToTrash(p) => Some(p.clone()),
+            Action::EmptyTrash => home.map(|h| h.trash.clone()),
+            Action::RustupUninstall(name) => home.map(|h| h.rustup.join("toolchains").join(name)),
+            Action::GoCleanModcache => home.map(|h| h.home.join("go/pkg/mod")),
+            Action::DockerImage { .. } | Action::DockerContainer(_) | Action::DockerVolume(_) | Action::DockerBuildCache(_) => {
+                self.docker_root.clone()
+            }
+        }
+    }
+
+    /// Reads the size and use of the filesystems that hold cleanup items.
+    pub fn refresh_space(&mut self) {
+        self.space = self.space_mounts.iter().filter_map(|m| mounts::space(m).filter(|s| s.total > 0).map(|s| (m.clone(), s))).collect();
     }
 
     /// True if the map may offer to move `p` to the Trash: inside the home
@@ -134,6 +213,7 @@ impl Disk {
         let progress = Arc::new(Progress::default());
         self.progress = Some(progress.clone());
         self.message = None;
+        self.refresh_space();
         let opts = scan::Options { downloads: self.home.as_ref().map(|h| h.downloads.clone()) };
         let scan_task = cosmic::task::future(async move {
             let s = tokio::task::spawn_blocking(move || match std::env::current_exe() {
@@ -145,10 +225,10 @@ impl Disk {
             .unwrap_or_else(|e| Err(e.to_string()));
             Message::Disk(DiskMsg::Scanned(Handoff(Arc::new(Mutex::new(Some(s))))))
         });
-        Task::batch([scan_task, self.load_docker()])
+        Task::batch([scan_task, self.load_docker(true)])
     }
 
-    fn load_docker(&mut self) -> Task<Message> {
+    fn load_docker(&mut self, resort: bool) -> Task<Message> {
         self.docker = Docker::find();
         let Some(d) = self.docker.clone() else {
             self.docker_state = DockerState::Missing;
@@ -157,8 +237,9 @@ impl Disk {
         };
         self.docker_state = DockerState::Loading;
         cosmic::task::future(async move {
-            let r = tokio::task::spawn_blocking(move || d.df()).await.unwrap_or_else(|e| Err(e.to_string()));
-            Message::Disk(DiskMsg::Docker(r))
+            let (df, root) =
+                tokio::task::spawn_blocking(move || (d.df(), d.root_dir().ok())).await.unwrap_or_else(|e| (Err(e.to_string()), None));
+            Message::Disk(DiskMsg::Docker { df, root, resort })
         })
     }
 
@@ -174,6 +255,7 @@ impl Disk {
             DiskMsg::Tick => {}
             DiskMsg::Scanned(h) => {
                 self.progress = None;
+                self.refresh_space();
                 let s = h.0.lock().ok().and_then(|mut s| s.take());
                 match s {
                     Some(Ok(s)) if !s.cancelled => self.set_scan(s),
@@ -181,9 +263,10 @@ impl Disk {
                     _ => self.message = Some(Err("Scan stopped.".into())),
                 }
             }
-            DiskMsg::Docker(r) => {
+            DiskMsg::Docker { df, root, resort } => {
+                self.docker_root = root;
                 let engine = self.docker.as_ref().map_or("Docker", |d| d.engine);
-                match r {
+                match df {
                     Ok(df) => {
                         self.docker_groups = findings::from_docker(&df, engine, time::now());
                         self.docker_state = DockerState::Ready;
@@ -192,6 +275,9 @@ impl Disk {
                         self.docker_groups.clear();
                         self.docker_state = DockerState::Failed(e);
                     }
+                }
+                if resort {
+                    self.arrange();
                 }
                 self.prune_selection();
             }
@@ -257,6 +343,7 @@ impl Disk {
             DiskMsg::Confirm => return self.run_confirmed(),
             DiskMsg::Trashed(p, r) => {
                 self.busy = false;
+                self.refresh_space();
                 match r {
                     Ok(()) => {
                         let (size, files) = self.forget(&p);
@@ -270,7 +357,7 @@ impl Disk {
                     Err(e) => self.message = Some(Err(format!("Could not move {} to the Trash: {e}", p.display()))),
                 }
             }
-            DiskMsg::Cleaned(results) => return self.on_cleaned(results),
+            DiskMsg::Cleaned(a, size, r) => return self.on_cleaned(a, size, r),
         }
         Task::none()
     }
@@ -292,6 +379,7 @@ impl Disk {
         self.scan = Some(s);
         self.scanned_at = now;
         self.map_cache.clear();
+        self.arrange();
         self.prune_selection();
     }
 
@@ -313,111 +401,101 @@ impl Disk {
                 Message::Disk(DiskMsg::Trashed(path, r))
             }),
             Confirm::Clean { items, .. } => {
-                let Some(home) = self.home.clone() else {
+                if self.home.is_none() {
                     self.busy = false;
                     return Task::none();
-                };
-                let docker = self.docker.clone();
+                }
                 // Pruning all unused build cache covers the 30-day prune.
                 let all_cache = items.iter().any(|(a, _, _)| *a == Action::DockerBuildCache(None));
-                let items: Vec<_> =
-                    items.into_iter().filter(|(a, _, _)| !(all_cache && matches!(a, Action::DockerBuildCache(Some(_))))).collect();
-                cosmic::task::future(async move {
-                    let results = tokio::task::spawn_blocking(move || {
-                        items
-                            .into_iter()
-                            .map(|(a, _, size)| {
-                                let r = clean::run(&a, &home, docker.as_ref());
-                                (a, size, r)
-                            })
-                            .collect()
-                    })
-                    .await
-                    .unwrap_or_default();
-                    Message::Disk(DiskMsg::Cleaned(results))
-                })
+                let queue: VecDeque<_> = items
+                    .into_iter()
+                    .filter(|(a, _, _)| !(all_cache && matches!(a, Action::DockerBuildCache(Some(_)))))
+                    .map(|(a, _, size)| (a, size))
+                    .collect();
+                self.cleaning = Some(Cleaning { total: queue.len(), queue, ..Cleaning::default() });
+                self.clean_next()
             }
         }
     }
 
-    fn on_cleaned(&mut self, results: Vec<(Action, u64, Outcome)>) -> Task<Message> {
-        self.busy = false;
-        let mut freed = 0;
-        let (mut trashed, mut trashed_files, mut trashed_count) = (0, 0, 0);
-        let mut done = Vec::new();
-        let mut failed = Vec::new();
-        let mut docker_changed = false;
-        for (a, size, r) in results {
-            match r {
-                Ok(reported) => {
-                    match &a {
-                        Action::MoveToTrash(p) => {
-                            let (s, f) = self.forget(p);
-                            trashed += size.max(s);
-                            trashed_files += f.max(1);
-                            trashed_count += 1;
-                        }
-                        Action::DeleteCache(p) => {
-                            freed += size;
-                            self.forget(p);
-                        }
-                        Action::EmptyTrash => {
-                            freed += size;
-                            if let Some(t) = self.home.as_ref().map(|h| h.trash.clone()) {
-                                self.forget(&t);
-                            }
-                        }
-                        Action::RustupUninstall(name) => {
-                            freed += size;
-                            if let Some(t) = self.home.as_ref().map(|h| h.rustup.join("toolchains").join(name)) {
-                                self.forget(&t);
-                            }
-                        }
-                        Action::GoCleanModcache => {
-                            freed += size;
-                            if let Some(t) = self.home.as_ref().map(|h| h.home.join("go/pkg/mod")) {
-                                self.forget(&t);
-                            }
-                        }
-                        Action::DockerImage { .. } | Action::DockerContainer(_) | Action::DockerVolume(_) | Action::DockerBuildCache(_) => {
-                            freed += reported.unwrap_or(size);
-                            docker_changed = true;
+    /// Runs the next queued cleanup item, or finishes when none is left.
+    fn clean_next(&mut self) -> Task<Message> {
+        let next = self.cleaning.as_mut().and_then(|c| c.queue.pop_front());
+        let (Some((a, size)), Some(home)) = (next, self.home.clone()) else { return self.finish_cleaning() };
+        let docker = self.docker.clone();
+        cosmic::task::future(async move {
+            let action = a.clone();
+            let r = tokio::task::spawn_blocking(move || clean::run(&action, &home, docker.as_ref()))
+                .await
+                .unwrap_or_else(|e| Err(e.to_string()));
+            Message::Disk(DiskMsg::Cleaned(a, size, r))
+        })
+    }
+
+    /// Takes a finished item off the list and starts the next.
+    fn on_cleaned(&mut self, a: Action, size: u64, r: Outcome) -> Task<Message> {
+        let Some(mut c) = self.cleaning.take() else { return Task::none() };
+        match r {
+            Ok(reported) => {
+                match &a {
+                    Action::MoveToTrash(p) => {
+                        let (s, f) = self.forget(p);
+                        c.trashed += size.max(s);
+                        c.trashed_count += 1;
+                        findings::add_to_trash(&mut self.groups, size.max(s), f.max(1));
+                    }
+                    Action::DockerImage { .. } | Action::DockerContainer(_) | Action::DockerVolume(_) | Action::DockerBuildCache(_) => {
+                        c.freed += reported.unwrap_or(size);
+                        c.docker_changed = true;
+                    }
+                    Action::DeleteCache(_) | Action::EmptyTrash | Action::RustupUninstall(_) | Action::GoCleanModcache => {
+                        c.freed += size;
+                        if let Some(p) = self.path_of(&a) {
+                            self.forget(&p);
                         }
                     }
-                    if matches!(a, Action::DockerBuildCache(None)) {
-                        done.push(Action::DockerBuildCache(Some(30 * 24)));
-                    }
-                    self.selected.remove(&a);
-                    done.push(a);
                 }
-                Err(e) => failed.push(e),
+                let mut done = vec![a];
+                if matches!(done[0], Action::DockerBuildCache(None)) {
+                    done.push(Action::DockerBuildCache(Some(30 * 24)));
+                }
+                for d in &done {
+                    self.selected.remove(d);
+                }
+                findings::without(&mut self.groups, &done);
+                findings::without(&mut self.docker_groups, &done);
+                self.refresh_space();
             }
+            Err(e) => c.failed.push(e),
         }
-        findings::without(&mut self.groups, &done);
-        findings::without(&mut self.docker_groups, &done);
-        if trashed_count > 0 {
-            findings::add_to_trash(&mut self.groups, trashed, trashed_files);
-        }
+        self.cleaning = Some(c);
+        self.clean_next()
+    }
+
+    /// Reports what the cleanup did.
+    fn finish_cleaning(&mut self) -> Task<Message> {
+        self.busy = false;
+        let Some(c) = self.cleaning.take() else { return Task::none() };
         let mut parts = Vec::new();
-        if freed > 0 || trashed_count == 0 {
-            parts.push(format!("Freed about {}.", masthead_core::format::bytes(freed)));
+        if c.freed > 0 || c.trashed_count == 0 {
+            parts.push(format!("Freed about {}.", masthead_core::format::bytes(c.freed)));
         }
-        if trashed_count > 0 {
+        if c.trashed_count > 0 {
             parts.push(format!(
                 "Moved {} to the Trash ({}). Empty the Trash to free the space.",
-                if trashed_count == 1 { "1 item".to_owned() } else { format!("{trashed_count} items") },
-                masthead_core::format::bytes(trashed)
+                if c.trashed_count == 1 { "1 item".to_owned() } else { format!("{} items", c.trashed_count) },
+                masthead_core::format::bytes(c.trashed)
             ));
         }
-        match (failed.len(), failed.first()) {
+        match (c.failed.len(), c.failed.first()) {
             (1, Some(first)) => parts.push(format!("One item was not removed: {first}")),
             (n, Some(first)) => parts.push(format!("{n} items were not removed. The first: {first}")),
             _ => {}
         }
         let msg = parts.join(" ");
-        self.message = Some(if failed.is_empty() { Ok(msg) } else { Err(msg) });
+        self.message = Some(if c.failed.is_empty() { Ok(msg) } else { Err(msg) });
         // Sizes of the rest shift as shared layers become unshared.
-        if docker_changed { self.load_docker() } else { Task::none() }
+        if c.docker_changed { self.load_docker(false) } else { Task::none() }
     }
 
     /// Removes the node at filesystem path `p` from the tree after it was

@@ -4,7 +4,9 @@
 //! The Disk usage page: a map of what uses the disk, and a list of what can
 //! be cleaned up.
 
-use super::{BOLD, Cols, El, MEDIUM, MONO, MONO_MEDIUM, SANS, boxed, chip, fill, icon, meter, small_button, swatch, t, table_row};
+use super::{
+    BOLD, Cols, El, MEDIUM, MONO, MONO_MEDIUM, SANS, boxed, chip, fill, icon, meter, small_button, space_color, swatch, t, table_row,
+};
 use crate::app::{App, Message};
 use crate::disk::{Confirm, DiskMsg, DockerState, Tab};
 use crate::icons;
@@ -74,6 +76,9 @@ pub fn page(app: &App) -> El<'_> {
         .align_y(Alignment::Start);
 
     let mut col = column![head].spacing(14);
+    if !d.space.is_empty() {
+        col = col.push(space(app));
+    }
     if let Some(m) = &d.message {
         col = col.push(match m {
             Ok(s) => t(s.clone(), 12.5, SANS, p.success),
@@ -98,6 +103,28 @@ pub fn page(app: &App) -> El<'_> {
     };
     // Room on the right for the scrollbar.
     col.push(scrollable(container(body).padding(Padding { right: 12.0, ..Padding::ZERO })).height(Length::Fill)).height(Length::Fill).into()
+}
+
+/// Used and free space on each local filesystem.
+fn space(app: &App) -> El<'_> {
+    let p = app.pal;
+    let mut col = column![].spacing(8);
+    for (mount, s) in &app.disk.space {
+        let frac = s.used as f64 / s.total as f64;
+        col = col.push(
+            column![
+                row![
+                    t(mount.to_string_lossy().into_owned(), 13.0, MONO_MEDIUM, p.fg),
+                    fill(),
+                    t(format!("{} used · {} free of {}", bytes(s.used), bytes(s.free), bytes(s.total)), 12.5, MONO, p.fg)
+                ]
+                .align_y(Alignment::Center),
+                meter(frac, space_color(app, frac), &p, Length::Fill, 6.0)
+            ]
+            .spacing(5),
+        );
+    }
+    col.into()
 }
 
 // ----------------------------------------------------------------------------
@@ -286,7 +313,9 @@ fn cleanup(app: &App) -> El<'_> {
         }
         DockerState::Ready | DockerState::NotAsked => {}
     }
-    if d.busy {
+    if let Some(c) = &d.cleaning {
+        col = col.push(t(format!("Cleaning up {} of {}…", c.current(), c.total), 12.5, SANS, p.fg_muted));
+    } else if d.busy {
         col = col.push(t("Cleaning up…", 12.5, SANS, p.fg_muted));
     }
     for g in d.all_groups() {

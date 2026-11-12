@@ -600,9 +600,14 @@ impl Application for App {
 }
 
 impl App {
-    /// Starts the first disk scan when the Disk usage page opens.
+    /// Reads filesystem space when the Disk usage page opens, and starts the
+    /// first disk scan.
     fn scan_if_new(&mut self) -> Task<Message> {
-        if self.page == Page::DiskUsage && self.disk.scan.is_none() && !self.disk.scanning() { self.disk.start() } else { Task::none() }
+        if self.page != Page::DiskUsage {
+            return Task::none();
+        }
+        self.disk.refresh_space();
+        if self.disk.scan.is_none() && !self.disk.scanning() { self.disk.start() } else { Task::none() }
     }
 
     fn raise(&self) -> Task<Message> {
