@@ -21,6 +21,7 @@ use masthead_core::MetricId;
 use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
 use masthead_core::thresholds::Threshold;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -151,6 +152,16 @@ pub fn effective_dark(theme: Theme, system_dark: bool) -> bool {
         Theme::Dark => true,
         Theme::Light => false,
     }
+}
+
+/// Whether the bar Style setting has an effect. Only the COSMIC panel applet
+/// draws it; the tray, the GNOME top bar and `masthead-bar` show values only.
+pub static BAR_STYLES: LazyLock<bool> = LazyLock::new(|| on_cosmic(|k| std::env::var(k).ok()));
+
+/// Whether the session is COSMIC. `XDG_CURRENT_DESKTOP` is a colon-separated
+/// list such as `ubuntu:GNOME`.
+fn on_cosmic(var: impl Fn(&str) -> Option<String>) -> bool {
+    var("XDG_CURRENT_DESKTOP").is_some_and(|v| v.split(':').any(|d| d.eq_ignore_ascii_case("cosmic")))
 }
 
 /// Bar metrics the thresholds editor offers.
@@ -651,6 +662,16 @@ pub fn parse_thresholds(drafts: &BTreeMap<MetricId, (String, String)>) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cosmic_detection() {
+        let env = |v: &'static str| move |k: &str| (k == "XDG_CURRENT_DESKTOP").then(|| v.to_owned());
+        assert!(on_cosmic(env("COSMIC")));
+        assert!(on_cosmic(env("pop:COSMIC")));
+        assert!(!on_cosmic(env("ubuntu:GNOME")));
+        assert!(!on_cosmic(env("")));
+        assert!(!on_cosmic(|_| None));
+    }
 
     #[test]
     fn double_click_does_not_close() {

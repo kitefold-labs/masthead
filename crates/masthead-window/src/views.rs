@@ -1020,12 +1020,22 @@ fn settings_page(app: &App) -> El<'_> {
         BarStyle::Trend => 1,
         BarStyle::Compact => 2,
     };
-    bar_rows.push(setting(
-        "Style",
-        "How each item draws in the bar",
-        cosmic::widget::dropdown(&app::STYLE_OPTIONS[..], Some(style_idx), Message::BarStyle).into(),
-        &p,
-    ));
+    bar_rows.push(if *app::BAR_STYLES {
+        setting(
+            "Style",
+            "How each item draws in the bar",
+            cosmic::widget::dropdown(&app::STYLE_OPTIONS[..], Some(style_idx), Message::BarStyle).into(),
+            &p,
+        )
+    } else {
+        // Only the COSMIC applet draws styles; elsewhere show the setting greyed out.
+        setting(
+            "Style",
+            "Trends show only in the COSMIC panel applet",
+            boxed(t(app::STYLE_OPTIONS[style_idx], 13.0, SANS, p.fg_dim), p, p.surface2).padding([5, 10]).into(),
+            &p,
+        )
+    });
 
     let units = vec![
         setting(

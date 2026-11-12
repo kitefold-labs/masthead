@@ -12,7 +12,7 @@ key is optional; these are the defaults:
 ```toml
 [bar]
 metrics = ["cpu", "mem", "gpu", "net", "temp"]   # also: disk, battery
-style = "values"          # values | trend | compact
+style = "values"          # values | trend | compact (trends: COSMIC applet only)
 
 [units]
 memory = "binary"         # binary (GiB) | decimal (GB)
