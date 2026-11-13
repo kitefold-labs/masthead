@@ -609,7 +609,11 @@ fn detail(app: &App, m: MetricId) -> El<'_> {
         }
         MetricId::Temp => {
             if let Some(s) = &d.sensors {
-                let warn = app.config.as_ref().and_then(|c| c.thresholds.get(&MetricId::Temp)).map_or(80.0, |t| t.warn);
+                let warn = match app.config.as_ref().and_then(|c| c.thresholds.get(&MetricId::Temp)) {
+                    Some(t) if t.enabled => t.warn,
+                    Some(_) => f64::INFINITY,
+                    None => 80.0,
+                };
                 let cols: Cols<'_> = &[("Sensor", None, false), ("Value", Some(170.0), true)];
                 for kind in ["temp", "fan", "voltage", "power"] {
                     let rows: Vec<_> = s.iter().filter(|x| x.kind == kind).collect();
@@ -1069,6 +1073,12 @@ fn settings_page(app: &App) -> El<'_> {
     for m in THRESHOLD_METRICS {
         let (w, c) = app.thresholds.get(&m).cloned().unwrap_or_default();
         let unit = if m == MetricId::Temp { "°C" } else { "%" };
+        // The switch needs a saved threshold to turn off.
+        let saved = cfg.thresholds.get(&m);
+        let mut alerts = cosmic::widget::toggler(saved.is_some_and(|t| t.enabled));
+        if saved.is_some() {
+            alerts = alerts.on_toggle(move |v| Message::Alerts(m, v));
+        }
         let inputs = row![
             t("warn", 11.5, MONO, p.fg_muted),
             cosmic::widget::text_input("–", w)
@@ -1081,6 +1091,8 @@ fn settings_page(app: &App) -> El<'_> {
                 .on_submit(|_| Message::ApplyThresholds)
                 .width(70),
             t(unit, 11.5, MONO, p.fg_muted),
+            Space::new().width(8),
+            alerts,
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -1088,7 +1100,13 @@ fn settings_page(app: &App) -> El<'_> {
     }
     thresholds.push(
         row![
-            t("Leave both empty for no threshold. Memory is a share of total; disk is space used per filesystem.", 12.0, SANS, p.fg_muted),
+            t(
+                "Leave both empty for no threshold. The switch turns a metric's colors and notifications off and keeps its numbers. \
+                 Memory is a share of total; disk is space used per filesystem.",
+                12.0,
+                SANS,
+                p.fg_muted
+            ),
             fill(),
             small_button("Apply", Some(Message::ApplyThresholds), p)
         ]

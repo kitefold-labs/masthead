@@ -60,6 +60,8 @@ pub enum Message {
     TempUnits(usize),
     ThresholdInput(MetricId, bool, String),
     ApplyThresholds,
+    /// Turn a metric's alerts (colors and notifications) on or off.
+    Alerts(MetricId, bool),
     Gpu(usize),
     TempSensor(usize),
     Virtual(bool),
@@ -520,14 +522,21 @@ impl Application for App {
                 }
             }
             Message::ApplyThresholds => match parse_thresholds(&self.thresholds) {
-                Ok(t) => self.edit(|c| {
+                Ok(mut t) => self.edit(|c| {
                     for m in THRESHOLD_METRICS {
-                        c.thresholds.remove(&m);
+                        if let (Some(new), Some(old)) = (t.get_mut(&m), c.thresholds.remove(&m)) {
+                            new.enabled = old.enabled;
+                        }
                     }
                     c.thresholds.extend(t);
                 }),
                 Err(e) => self.error = Some(e),
             },
+            Message::Alerts(m, on) => self.edit(|c| {
+                if let Some(t) = c.thresholds.get_mut(&m) {
+                    t.enabled = on;
+                }
+            }),
             Message::Gpu(i) => {
                 let (_, keys) = self.gpu_choices();
                 if let Some(k) = keys.get(i).cloned() {
@@ -654,7 +663,7 @@ pub fn parse_thresholds(drafts: &BTreeMap<MetricId, (String, String)>) -> Result
         if warn > crit {
             return Err(format!("{}: warn must not be above critical.", m.title()));
         }
-        out.insert(*m, Threshold { warn, crit });
+        out.insert(*m, Threshold::new(warn, crit));
     }
     Ok(out)
 }

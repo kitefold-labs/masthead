@@ -14,6 +14,19 @@ use serde::{Deserialize, Serialize};
 pub struct Threshold {
     pub warn: f64,
     pub crit: f64,
+    /// False keeps the numbers but turns the metric's alerts off: it is never
+    /// amber or red and sends no notification.
+    #[serde(default = "yes", skip_serializing_if = "is_true")]
+    pub enabled: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde passes a reference
+fn is_true(b: &bool) -> bool {
+    *b
 }
 
 /// How far a value must fall below a threshold before its level drops, so a
@@ -21,6 +34,10 @@ pub struct Threshold {
 pub const HYSTERESIS: f64 = 2.0;
 
 impl Threshold {
+    pub const fn new(warn: f64, crit: f64) -> Self {
+        Self { warn, crit, enabled: true }
+    }
+
     pub fn level(&self, value: f64, previous: Level) -> Level {
         let crit_exit = if previous == Level::Crit { self.crit - HYSTERESIS } else { self.crit };
         let warn_exit = if previous >= Level::Warn { self.warn - HYSTERESIS } else { self.warn };
@@ -66,7 +83,7 @@ mod tests {
 
     #[test]
     fn hysteresis() {
-        let t = Threshold { warn: 85.0, crit: 95.0 };
+        let t = Threshold::new(85.0, 95.0);
         assert_eq!(t.level(50.0, Level::Normal), Level::Normal);
         assert_eq!(t.level(85.0, Level::Normal), Level::Warn);
         assert_eq!(t.level(84.0, Level::Warn), Level::Warn);

@@ -176,10 +176,10 @@ impl Default for Config {
 
 pub fn default_thresholds() -> BTreeMap<MetricId, Threshold> {
     BTreeMap::from([
-        (MetricId::Cpu, Threshold { warn: 85.0, crit: 95.0 }),
-        (MetricId::Mem, Threshold { warn: 90.0, crit: 95.0 }),
-        (MetricId::Disk, Threshold { warn: 90.0, crit: 95.0 }),
-        (MetricId::Temp, Threshold { warn: 80.0, crit: 90.0 }),
+        (MetricId::Cpu, Threshold::new(85.0, 95.0)),
+        (MetricId::Mem, Threshold::new(90.0, 95.0)),
+        (MetricId::Disk, Threshold::new(90.0, 95.0)),
+        (MetricId::Temp, Threshold::new(80.0, 90.0)),
     ])
 }
 
@@ -252,8 +252,9 @@ impl Config {
         std::fs::rename(&tmp, path).map_err(ConfigError::Io)
     }
 
+    /// The metric's threshold, if it has one with alerts on.
     pub fn threshold(&self, m: MetricId) -> Option<Threshold> {
-        self.thresholds.get(&m).copied()
+        self.thresholds.get(&m).copied().filter(|t| t.enabled)
     }
 }
 
@@ -273,10 +274,22 @@ mod tests {
         assert_eq!(c.bar.metrics, vec![MetricId::Cpu, MetricId::Disk]);
         assert_eq!(c.bar.style, BarStyle::Trend);
         assert_eq!(c.units.network, NetworkUnits::Bits);
-        assert_eq!(c.threshold(MetricId::Cpu), Some(Threshold { warn: 70.0, crit: 90.0 }));
-        assert_eq!(c.threshold(MetricId::Temp), Some(Threshold { warn: 80.0, crit: 90.0 }));
-        assert_eq!(c.threshold(MetricId::Disk), Some(Threshold { warn: 90.0, crit: 95.0 }));
+        assert_eq!(c.threshold(MetricId::Cpu), Some(Threshold::new(70.0, 90.0)));
+        assert_eq!(c.threshold(MetricId::Temp), Some(Threshold::new(80.0, 90.0)));
+        assert_eq!(c.threshold(MetricId::Disk), Some(Threshold::new(90.0, 95.0)));
         assert_eq!(c.threshold(MetricId::Net), None);
+    }
+
+    #[test]
+    fn alerts_off_keeps_the_numbers() {
+        let c = Config::parse("[thresholds.cpu]\nwarn=70\ncrit=90\nenabled=false\n").unwrap();
+        assert_eq!(c.threshold(MetricId::Cpu), None);
+        assert_eq!(c.thresholds[&MetricId::Cpu], Threshold { warn: 70.0, crit: 90.0, enabled: false });
+        let text = c.to_toml();
+        assert!(text.contains("enabled = false"));
+        assert_eq!(Config::parse(&text).unwrap(), c);
+        // On is the default and is not written out.
+        assert!(!Config::default().to_toml().contains("enabled = true"));
     }
 
     #[test]

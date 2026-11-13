@@ -22,6 +22,7 @@ temperature = "celsius"   # celsius | fahrenheit
 [thresholds.cpu]          # amber at warn, red at crit
 warn = 85
 crit = 95
+enabled = true            # false: no colors or notifications; keeps the numbers
 
 [thresholds.disk]         # % of a filesystem's space used; colors the
 warn = 90                 # window's space meters, not the Disk bar item
