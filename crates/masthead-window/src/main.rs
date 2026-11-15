@@ -8,11 +8,13 @@
 //! everything comes from `masthead-daemon` over the session bus.
 
 mod app;
+mod bitmap;
 mod bus;
 mod chart;
 mod disk;
 mod icons;
 mod kill;
+mod labels;
 mod model;
 mod palette;
 mod speedtest;
@@ -86,12 +88,6 @@ fn load_fonts() {
     }
 }
 
-/// Whether winit will open the window on Wayland, which it does whenever
-/// `WAYLAND_DISPLAY` or `WAYLAND_SOCKET` is set and not empty.
-fn on_wayland(var: impl Fn(&str) -> Option<String>) -> bool {
-    ["WAYLAND_DISPLAY", "WAYLAND_SOCKET"].iter().any(|k| var(k).is_some_and(|v| !v.is_empty()))
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     // The Disk usage page runs its scan in a child copy of this program.
@@ -154,17 +150,18 @@ fn main() {
     let theme =
         masthead_core::config::Config::load(&masthead_core::config::Config::default_path()).map(|c| c.window.theme).unwrap_or_default();
     let pal = palette::Palette::for_dark(app::effective_dark(theme, dark));
-    // The software renderer cannot draw into the ARGB visual X11 gives a
-    // transparent window, so on X11 the window is opaque with square corners.
-    let wayland = on_wayland(|k| std::env::var(k).ok());
+    // Opaque with square corners. The renderer fills the window background
+    // for free; a transparent window would need the background painted as
+    // a widget, and the software renderer draws a quad that touches the
+    // window edge through a clip mask, twenty times slower.
     let settings = cosmic::app::Settings::default()
         .size(cosmic::iced::Size::new(1040.0, 720.0))
         .size_limits(cosmic::iced::Limits::NONE.min_width(760.0).min_height(520.0))
         .default_font(views::SANS)
         .default_text_size(14.0)
         .theme(palette::cosmic_theme(&pal))
-        .transparent(wayland);
-    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, sharp_corners: !wayland, requests }) {
+        .transparent(false);
+    if let Err(e) = cosmic::app::run::<app::App>(settings, app::Flags { page, dark, theme, requests }) {
         eprintln!("masthead-window: {e}");
         std::process::exit(1);
     }
@@ -188,14 +185,5 @@ mod tests {
         assert!(parse_args(&a(&["--metric", "fan"])).is_err());
         assert!(parse_args(&a(&["--bogus"])).is_err());
         assert_eq!(FONTS.len(), 5);
-    }
-
-    #[test]
-    fn wayland_detection_matches_winit() {
-        let env = |pairs: &'static [(&str, &str)]| move |k: &str| pairs.iter().find(|(n, _)| *n == k).map(|(_, v)| (*v).to_owned());
-        assert!(on_wayland(env(&[("WAYLAND_DISPLAY", "wayland-0"), ("DISPLAY", ":0")])));
-        assert!(on_wayland(env(&[("WAYLAND_SOCKET", "3")])));
-        assert!(!on_wayland(env(&[("DISPLAY", ":0")])));
-        assert!(!on_wayland(env(&[("WAYLAND_DISPLAY", ""), ("DISPLAY", ":0")])));
     }
 }

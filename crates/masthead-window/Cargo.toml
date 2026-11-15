@@ -22,12 +22,18 @@ serde_json.workspace = true
 futures-util.workspace = true
 tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
 ureq.workspace = true
+# Paints charts and the disk map into bitmaps the renderer can blit.
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
 rev = "7cd76ae3160cbd26ae89a4c01e64eda21f648c7f"
 default-features = false
 features = ["winit", "tokio", "wayland", "x11", "a11y"]
+
+[dev-dependencies]
+# PNGs of the benchmark's frames, with MASTHEAD_BENCH_PNG=<dir>.
+tiny-skia = { version = "0.11", default-features = false, features = ["png-format"] }
 
 [lints]
 workspace = true

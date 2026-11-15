@@ -4,8 +4,8 @@
 //! The libcosmic application: state, messages, update and the top-level
 //! layout. Page bodies live in [`crate::views`].
 
+use crate::bitmap;
 use crate::bus::{Command, EVENTS, Event, Req};
-use crate::chart::Cache;
 use crate::disk::{Disk, DiskMsg};
 use crate::kill::{self, Signal, Target};
 use crate::model::{self, Page, Range, Series, Sort, SortKey};
@@ -25,6 +25,9 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
 pub const APP_ID: &str = "com.kitefoldlabs.Masthead";
+
+#[cfg(test)]
+mod bench;
 
 /// While the process table shows, the window takes one sample in this many.
 /// Every update redraws the whole window in software, and the table is the
@@ -92,8 +95,6 @@ pub struct Flags {
     pub dark: bool,
     /// The theme setting, read from the config file before the first frame.
     pub theme: Theme,
-    /// Square corners, for a window that cannot be transparent.
-    pub sharp_corners: bool,
     pub requests: UnboundedSender<Req>,
 }
 
@@ -110,12 +111,13 @@ pub struct App {
     pub detail: Option<Detail>,
     /// Series for the current page's chart, in [`model::series_for`] order.
     pub chart: Vec<Series>,
-    pub chart_cache: Cache,
+    /// The chart's painted series.
+    pub chart_cache: bitmap::Cache,
     generation: u64,
     coarse_ticks: u32,
     /// The last 60 s of every series, for the sidebar.
     pub spark: HashMap<&'static str, Series>,
-    pub spark_cache: HashMap<MetricId, Cache>,
+    pub spark_cache: HashMap<MetricId, bitmap::Cache>,
     pub sort: Sort,
     pub filter: String,
     /// The process table from the latest window-tier sample.
@@ -342,7 +344,7 @@ impl Application for App {
         core.window.header_title = String::new();
         core.window.show_maximize = true;
         core.window.content_container = false;
-        core.window.sharp_corners = flags.sharp_corners;
+        core.window.sharp_corners = true;
         let mut app = App {
             core,
             pal: Palette::for_dark(effective_dark(flags.theme, flags.dark)),
@@ -354,11 +356,11 @@ impl Application for App {
             panel: Vec::new(),
             detail: None,
             chart: Vec::new(),
-            chart_cache: Cache::new(),
+            chart_cache: bitmap::Cache::new(),
             generation: 0,
             coarse_ticks: 0,
             spark: HashMap::new(),
-            spark_cache: MetricId::ALL.iter().map(|m| (*m, Cache::new())).collect(),
+            spark_cache: MetricId::ALL.iter().map(|m| (*m, bitmap::Cache::new())).collect(),
             sort: Sort::default(),
             filter: String::new(),
             procs: Vec::new(),
@@ -387,6 +389,12 @@ impl Application for App {
         };
         let scan = app.scan_if_new();
         (app, Task::batch([title, scan]))
+    }
+
+    /// The window background. The renderer fills it when it clears a frame,
+    /// so no widget has to paint it.
+    fn style(&self) -> Option<cosmic::iced::theme::Style> {
+        Some(cosmic::iced::theme::Style { background_color: self.pal.bg, text_color: self.pal.fg, icon_color: self.pal.fg_muted })
     }
 
     fn header_start(&self) -> Vec<Element<'_, Message>> {

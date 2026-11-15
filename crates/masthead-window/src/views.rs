@@ -4,7 +4,7 @@
 //! Page layouts. Every color comes from the app's [`Palette`].
 
 use crate::app::{self, App, Message, THRESHOLD_METRICS};
-use crate::chart::{Chart, Meter, Spark};
+use crate::chart::{self, Chart};
 use crate::icons;
 use crate::kill::{Signal, Target};
 use crate::model::{self, Page, Range, SortKey};
@@ -13,7 +13,7 @@ use crate::speedtest::{self, Phase, SpeedMsg};
 use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
-use cosmic::iced::widget::{Space, button, canvas, column, container, keyed_column, mouse_area, row, scrollable, svg, text};
+use cosmic::iced::widget::{Space, button, column, container, keyed_column, mouse_area, row, scrollable, svg, text};
 use cosmic::iced::{Alignment, Background, Border, Color, Font, Length, Padding};
 use masthead_api::detail::{GpuDetail, ProcDetail};
 use masthead_core::config::{BarStyle, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
@@ -69,8 +69,33 @@ fn icon<'a>(h: svg::Handle, c: Color, size: f32) -> El<'a> {
     svg(h).width(size).height(size).class(cosmic::theme::Svg::custom(move |_| svg::Style { color: Some(c) })).into()
 }
 
+/// A horizontal meter: track plus fill, `fraction` 0–1. Two plain quads; a
+/// canvas would be rasterized again on every frame.
 fn meter<'a>(fraction: f64, color: Color, p: &Palette, width: Length, height: f32) -> El<'a> {
-    canvas(Meter { fraction: fraction as f32, color, track: p.surface3 }).width(width).height(height).into()
+    let radius = height / 2.0;
+    let style = move |c: Color| {
+        move |_: &cosmic::Theme| container::Style {
+            background: Some(Background::Color(c)),
+            border: Border { radius: radius.into(), ..Border::default() },
+            ..container::Style::default()
+        }
+    };
+    let fraction = fraction.clamp(0.0, 1.0) as f32;
+    let mut fill = row![].width(Length::Fill);
+    if fraction > 0.0 {
+        // At least as wide as it is tall, so a sliver still shows as a dot.
+        let w = match width {
+            Length::Fixed(px) => Length::Fixed((px * fraction).max(height)),
+            _ => Length::FillPortion((fraction * 1000.0).round().max(10.0) as u16),
+        };
+        fill = fill.push(container(Space::new().width(w).height(height)).style(style(color)));
+        if let Length::FillPortion(part) = w
+            && part < 1000
+        {
+            fill = fill.push(Space::new().width(Length::FillPortion(1000 - part)));
+        }
+    }
+    container(fill).width(width).height(height).style(style(p.surface3)).into()
 }
 
 /// A flat button with a hover and selected background.
@@ -185,7 +210,7 @@ pub fn sidebar(app: &App) -> El<'_> {
         let series: Vec<_> = names.iter().map(|s| app.spark.get(s).cloned().unwrap_or_default()).collect();
         let max = model::y_max(m, &series, mem_total);
         let spark: El<'_> = match app.spark_cache.get(&m) {
-            Some(cache) => canvas(Spark { series, max, pal: p, cache }).width(Length::Fill).height(16).into(),
+            Some(cache) => chart::spark(series, max, p, cache),
             None => Space::new().height(16).into(),
         };
         let head = row![
@@ -242,14 +267,12 @@ pub fn main(app: &App) -> El<'_> {
             col.push(cosmic::iced::widget::responsive(move |size| processes_page(app, size.height))).height(Length::Fill).into()
         }
     };
+    // No background: the window's own is this color, and a quad this large
+    // would be drawn through a clip mask on every frame.
     container(body)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(move |_| container::Style {
-            background: Some(Background::Color(p.bg)),
-            text_color: Some(p.fg),
-            ..container::Style::default()
-        })
+        .style(move |_| container::Style { text_color: Some(p.fg), ..container::Style::default() })
         .into()
 }
 
@@ -343,7 +366,7 @@ fn metric_page(app: &App, m: MetricId) -> El<'_> {
         cache: &app.chart_cache,
         mono: MONO,
     };
-    col = col.push(canvas(chart).width(Length::Fill).height(196));
+    col = col.push(chart.view(196.0));
 
     let st = app.chart.first().map(model::stats).unwrap_or_default();
     let stat = |k: &str, v: Option<f64>| -> El<'_> {
