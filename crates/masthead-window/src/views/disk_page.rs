@@ -12,7 +12,7 @@ use crate::disk::{Confirm, DiskMsg, DockerState, Tab};
 use crate::icons;
 use crate::palette::Palette;
 use crate::treemap::Treemap;
-use cosmic::iced::widget::{Space, button, canvas, column, container, row, scrollable};
+use cosmic::iced::widget::{Space, button, column, container, row, scrollable};
 use cosmic::iced::{Alignment, Background, Border, Color, Length, Padding};
 use masthead_core::format::bytes;
 use masthead_disk::findings::{Group, GroupId};
@@ -184,7 +184,7 @@ fn map<'a>(app: &'a App, tree: &'a Node) -> El<'a> {
         pal: p,
         caches: caches.clone(),
         inner_caches,
-        cache: &d.map_cache,
+        tiles: &d.map_cache,
         mono: MONO,
         sans: SANS,
         on_open: Box::new(move |i| {
@@ -194,7 +194,7 @@ fn map<'a>(app: &'a App, tree: &'a Node) -> El<'a> {
         }),
         format: bytes,
     };
-    let map_el: El<'_> = canvas(tm).width(Length::Fill).height(340).into();
+    let map_el: El<'_> = tm.view(340.0);
 
     let legend = row![
         legend_item("Folder", p.accent, &p),

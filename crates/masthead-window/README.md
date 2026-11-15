@@ -46,14 +46,32 @@ every page, but RSS rose to 170–210 MB on an NVIDIA machine because the
 driver's libraries are mapped into the process, which is over the 120 MB
 budget. Software rendering stays the default.
 
-Every update redraws the whole window in software, so the window keeps
-updates rare and each frame cheap:
+Every update redraws the damaged part of the window in software, so the
+window keeps updates rare and each frame cheap:
 
 - bar items (`Panel` signals) are forwarded only when an alert level changes;
-- chart geometry is cached and rebuilt only when a sample arrives;
+- the chart, the sidebar sparklines and the disk map are painted into bitmaps
+  (`src/bitmap.rs`) when a sample arrives or the folder changes, and blitted
+  after that; a canvas would have every path rasterized again on every frame,
+  clip-masked twice over;
+- labels on those bitmaps are drawn with a tight clip rectangle each
+  (`src/labels.rs`): canvas text carries the whole canvas as its clip
+  rectangle, and the renderer masks every glyph of a text whose clip touches
+  the edge of a scrolling area;
+- the window is opaque with square corners, and the renderer fills its
+  background. A quad that touches the edge of its clip is drawn through a
+  mask, about twenty times slower, which a transparent window's painted
+  background would be on every frame;
 - the process table fits the window instead of scrolling, has one text per
-  cell and no per-row bars (each canvas bar cost more than its row's text),
-  and refreshes every 3 s, as GNOME System Monitor does.
+  cell and no per-row bars, and refreshes every 3 s, as GNOME System Monitor
+  does.
+
+`cargo test --release -p masthead-window -- --ignored --nocapture bench`
+prints the time each page takes to build, lay out, draw and rasterize a frame,
+a scroll frame and a 1 Hz sample, at four window sizes, plus the cost of the
+renderer's primitives. On the Ryzen 9 9950X3D a scroll frame on the CPU page
+takes 1.9 ms at 1040×720 and 6 ms maximized on a 4K display. The bitmaps cost
+memory: about 40 MB resident on the CPU page at 1040×720.
 
 ## Fonts
 

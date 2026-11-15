@@ -9,7 +9,6 @@
 //! memory until the window closes.
 
 use crate::app::Message;
-use crate::treemap;
 use cosmic::app::Task;
 use masthead_disk::docker::{Df, Docker};
 use masthead_disk::findings::{self, Action, Group, GroupId, Home};
@@ -136,7 +135,8 @@ pub struct Disk {
     /// something is deleted.
     pub space: Vec<(PathBuf, Space)>,
     pub message: Option<Result<String, String>>,
-    pub map_cache: treemap::Cache,
+    /// The map's painted tiles.
+    pub map_cache: crate::bitmap::Cache,
     pub home: Option<Home>,
 }
 

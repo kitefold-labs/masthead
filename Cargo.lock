@@ -3320,6 +3320,7 @@ dependencies = [
  "masthead-core",
  "masthead-disk",
  "serde_json",
+ "tiny-skia 0.11.4",
  "tokio",
  "ureq",
  "zbus 6.2.1",
