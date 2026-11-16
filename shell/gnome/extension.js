@@ -111,6 +111,10 @@ const MetricItem = GObject.registerClass({
         this.remove_style_class_name('masthead-dim');
         if (this._label.text !== item.text)
             this._label.text = item.text;
+        if (this.metric === 'disk' && F.diskSpace(prev) !== F.diskSpace(item)) {
+            this._label.remove_style_class_name(`masthead-${F.diskSpace(prev) ? 'w4' : WIDTH.disk}`);
+            this._label.add_style_class_name(`masthead-${F.diskSpace(item) ? 'w4' : WIDTH.disk}`);
+        }
         if (prev?.level !== item.level) {
             this.remove_style_class_name('masthead-warn');
             this.remove_style_class_name('masthead-crit');
@@ -319,13 +323,13 @@ export default class MastheadExtension extends Extension {
         this._trendBusy = true;
         try {
             for (const item of this._items.values()) {
-                const series = F.SERIES[item.metric];
-                if (!series || !item.sparkVisible)
+                const series = F.seriesFor(item.metric, item.item);
+                if (!series.length || !item.sparkVisible)
                     continue;
                 const values = await Client.history(series[0], SPARK_SECONDS);
                 if (!this._items)
                     return;
-                item.setTrend(values, this._maxFor(item.metric, [values]));
+                item.setTrend(values, this._maxFor(item, [values]));
             }
         } catch (e) {
             console.debug(`Masthead: History failed: ${e.message}`);
@@ -334,7 +338,10 @@ export default class MastheadExtension extends Extension {
         }
     }
 
-    _maxFor(metric, seriesList) {
+    _maxFor(item, seriesList) {
+        const metric = item.metric;
+        if (F.diskSpace(item.item))
+            return 100;
         if (metric === 'mem')
             return this._memTotal ?? Draw.niceMax(seriesList);
         if (metric === 'net' || metric === 'disk')
@@ -474,13 +481,13 @@ export default class MastheadExtension extends Extension {
         this._popover.placeUnder(item);
         const gen = this._hover.gen;
         try {
-            const series = F.SERIES[item.metric] ?? [];
+            const series = F.seriesFor(item.metric, item.item);
             const lists = [];
             for (const s of series) {
                 lists.push(await Client.history(s, SPARK_SECONDS));
             }
             if (gen === this._hover.gen && this._popover)
-                this._popover.setHistory(lists, this._maxFor(item.metric, lists));
+                this._popover.setHistory(lists, this._maxFor(item, lists));
         } catch (e) {
             console.debug(`Masthead: History failed: ${e.message}`);
         }

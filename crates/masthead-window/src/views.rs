@@ -16,7 +16,7 @@ use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
 use cosmic::iced::widget::{Space, button, column, container, keyed_column, mouse_area, row, scrollable, svg, text};
 use cosmic::iced::{Alignment, Background, Border, Color, Font, Length, Padding};
 use masthead_api::detail::{GpuDetail, ProcDetail};
-use masthead_core::config::{BarStyle, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
+use masthead_core::config::{BarStyle, DiskValue, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
 use masthead_core::{Level, MetricId, format};
 
 const fn font(family: &'static str, weight: Weight) -> Font {
@@ -1049,6 +1049,15 @@ fn settings_page(app: &App) -> El<'_> {
         cosmic::widget::dropdown(&app::STYLE_OPTIONS[..], Some(style_idx), Message::BarStyle).into(),
         &p,
     ));
+    if avail.contains(&MetricId::Disk) {
+        bar_rows.push(setting(
+            "Disk",
+            "What the Disk item shows",
+            cosmic::widget::dropdown(&app::DISK_OPTIONS[..], Some(usize::from(cfg.bar.disk == DiskValue::Space)), Message::DiskValue)
+                .into(),
+            &p,
+        ));
+    }
 
     let units = vec![
         setting(
@@ -1113,7 +1122,9 @@ fn settings_page(app: &App) -> El<'_> {
     let gpu_idx = gpu_keys.iter().position(|k| *k == cfg.devices.gpu).unwrap_or(0);
     let (sen_labels, sen_keys) = app.sensor_choices();
     let sen_idx = sen_keys.iter().position(|k| *k == cfg.devices.temperature).unwrap_or(0);
-    let devices = vec![
+    let (fs_labels, fs_keys) = app.filesystem_choices(&cfg.devices.filesystem);
+    let fs_idx = fs_keys.iter().position(|k| *k == cfg.devices.filesystem);
+    let mut devices = vec![
         setting("GPU in the bar", "", cosmic::widget::dropdown(gpu_labels, Some(gpu_idx), Message::Gpu).into(), &p),
         setting("Temperature sensor", "", cosmic::widget::dropdown(sen_labels, Some(sen_idx), Message::TempSensor).into(), &p),
         setting(
@@ -1123,6 +1134,17 @@ fn settings_page(app: &App) -> El<'_> {
             &p,
         ),
     ];
+    if avail.contains(&MetricId::Disk) {
+        devices.insert(
+            2,
+            setting(
+                "Filesystem in the bar",
+                "Whose space the Disk item shows when set to Space used",
+                cosmic::widget::dropdown(fs_labels, fs_idx, Message::Filesystem).into(),
+                &p,
+            ),
+        );
+    }
 
     let tray_idx = match cfg.tray.mode {
         TrayMode::Auto => 0,

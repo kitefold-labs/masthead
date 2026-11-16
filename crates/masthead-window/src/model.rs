@@ -107,6 +107,7 @@ pub fn series_value(d: &Detail, series: &str) -> f64 {
         "net.tx" => d.net.as_ref().map(|n| n.tx),
         "disk.read" => d.disk.as_ref().map(|x| x.read),
         "disk.write" => d.disk.as_ref().map(|x| x.write),
+        "disk.used" => d.disk.as_ref().and_then(|x| x.space_used),
         "temp" => d.cpu.as_ref().and_then(|c| c.package_temp_c),
         "battery" => d.batteries.as_ref().and_then(|b| b.first()).and_then(|b| b.percent),
         _ => None,
@@ -356,7 +357,7 @@ pub fn y_max(m: MetricId, series: &[Series], mem_total: u64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use masthead_api::detail::{CpuDetail, GpuDetail, MemDetail, NetDetail};
+    use masthead_api::detail::{CpuDetail, DiskDetail, GpuDetail, MemDetail, NetDetail};
 
     #[test]
     fn pages() {
@@ -397,6 +398,9 @@ mod tests {
         assert!((series_value(&d, "net.tx") - 6.0).abs() < 1e-9);
         assert!((series_value(&d, "temp") - 64.0).abs() < 1e-9);
         assert!(series_value(&d, "disk.read").is_nan());
+        assert!(series_value(&d, "disk.used").is_nan());
+        let disk = Detail { disk: Some(DiskDetail { space_used: Some(25.0), ..DiskDetail::default() }), ..d.clone() };
+        assert!((series_value(&disk, "disk.used") - 25.0).abs() < 1e-9);
         assert!(series_value(&d, "battery").is_nan());
         assert!(series_value(&d, "bogus").is_nan());
         for m in MetricId::ALL {

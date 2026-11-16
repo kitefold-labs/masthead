@@ -33,6 +33,7 @@ Per-source cost of one sample (`cargo run --release -p masthead-probe --example 
 |---|---|
 | `/proc/net/dev` (25 interfaces, 22 of them virtual) | 59 µs |
 | `/proc/diskstats` | 19 µs |
+| `statvfs` on `/` | 0.5 µs |
 | `/proc/stat` (32 threads) | 13 µs |
 | `/proc/meminfo` | 2 µs |
 | CPU temperature (`k10temp`) | 2 µs |

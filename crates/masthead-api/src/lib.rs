@@ -22,7 +22,7 @@ pub const WINDOW_OBJECT_PATH: &str = "/com/kitefoldlabs/Masthead/Window";
 pub const WINDOW_INTERFACE: &str = "com.kitefoldlabs.Masthead.Window1";
 
 /// History series accepted by `History`.
-pub const SERIES: &[&str] = &["cpu", "mem", "gpu", "net.rx", "net.tx", "disk.read", "disk.write", "temp", "battery"];
+pub const SERIES: &[&str] = &["cpu", "mem", "gpu", "net.rx", "net.tx", "disk.read", "disk.write", "disk.used", "temp", "battery"];
 
 /// One bar item. D-Bus signature `(sdsus)`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -30,7 +30,8 @@ pub struct PanelItem {
     /// Metric id: `cpu`, `mem`, `gpu`, `net`, `disk`, `temp`, `battery`.
     pub id: String,
     /// The raw value: percent, bytes, bytes per second (download for `net`,
-    /// read plus write for `disk`) or °C.
+    /// read plus write for `disk`, or percent of `devices.filesystem` used when
+    /// the bar is set to show disk space) or °C.
     pub value: f64,
     /// Formatted for the bar, already in the user's units: `23%`, `↓2.1M ↑180K`.
     pub text: String,
@@ -38,6 +39,19 @@ pub struct PanelItem {
     pub level: u32,
     /// One line for tooltips: `load 4.12 · 64 °C`.
     pub summary: String,
+}
+
+impl PanelItem {
+    /// Whether this is the Disk item showing space used (`71%`) rather
+    /// than read and write rates (`r2.1M w0B`). Its `value` is then a percent.
+    pub fn disk_space(&self) -> bool {
+        is_disk_space(&self.id, &self.text)
+    }
+}
+
+/// [`PanelItem::disk_space`] for a metric id and bar text.
+pub fn is_disk_space(id: &str, text: &str) -> bool {
+    id == "disk" && !text.starts_with('r')
 }
 
 /// The daemon's interface, as seen by a client.

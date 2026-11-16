@@ -48,6 +48,17 @@ pub enum BarStyle {
     Compact,
 }
 
+/// What the Disk bar item shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiskValue {
+    /// Read and write rates: `r2.1M w180K`.
+    #[default]
+    Io,
+    /// Percent of `devices.filesystem`'s space used: `71%`.
+    Space,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TrayMode {
@@ -63,11 +74,16 @@ pub enum TrayMode {
 pub struct Bar {
     pub metrics: Vec<MetricId>,
     pub style: BarStyle,
+    pub disk: DiskValue,
 }
 
 impl Default for Bar {
     fn default() -> Self {
-        Self { metrics: vec![MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Net, MetricId::Temp], style: BarStyle::Values }
+        Self {
+            metrics: vec![MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Net, MetricId::Temp],
+            style: BarStyle::Values,
+            disk: DiskValue::Io,
+        }
     }
 }
 
@@ -90,6 +106,8 @@ pub struct Devices {
     pub interfaces: Vec<String>,
     /// Count virtual interfaces (docker0, veth*, br-*) too.
     pub include_virtual_interfaces: bool,
+    /// Mount point whose space the Disk bar item shows with `bar.disk = "space"`.
+    pub filesystem: String,
     /// Read NVIDIA GPUs through NVIDIA's NVML library while GPU data is shown.
     /// It costs about 20 MB of memory; without it NVIDIA GPUs show no load.
     pub nvml: bool,
@@ -97,7 +115,14 @@ pub struct Devices {
 
 impl Default for Devices {
     fn default() -> Self {
-        Self { gpu: "auto".into(), temperature: "auto".into(), interfaces: Vec::new(), include_virtual_interfaces: false, nvml: true }
+        Self {
+            gpu: "auto".into(),
+            temperature: "auto".into(),
+            filesystem: "/".into(),
+            interfaces: Vec::new(),
+            include_virtual_interfaces: false,
+            nvml: true,
+        }
     }
 }
 
@@ -277,6 +302,9 @@ mod tests {
         assert_eq!(c.threshold(MetricId::Temp), Some(Threshold { warn: 80.0, crit: 90.0 }));
         assert_eq!(c.threshold(MetricId::Disk), Some(Threshold { warn: 90.0, crit: 95.0 }));
         assert_eq!(c.threshold(MetricId::Net), None);
+        assert_eq!(c.bar.disk, DiskValue::Io);
+        assert_eq!(Config::parse("[bar]\ndisk=\"space\"\n").unwrap().bar.disk, DiskValue::Space);
+        assert!(Config::parse("[bar]\ndisk=\"free\"\n").is_err());
     }
 
     #[test]
@@ -304,6 +332,8 @@ mod tests {
         let c = Config::parse("[devices]\ngpu=\"0000:01:00.0\"\ntemperature=\"k10temp/Tctl\"\n").unwrap();
         assert_eq!(c.devices.gpu_preference(), Some("0000:01:00.0"));
         assert_eq!(c.devices.temperature_preference(), Some("k10temp/Tctl"));
+        assert_eq!(Config::default().devices.filesystem, "/");
+        assert_eq!(Config::parse("[devices]\nfilesystem=\"/home\"\n").unwrap().devices.filesystem, "/home");
     }
 
     #[test]

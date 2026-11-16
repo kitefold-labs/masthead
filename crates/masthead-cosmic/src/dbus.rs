@@ -25,8 +25,8 @@ pub enum Cmd {
     /// Release a hover subscription and stop its detail stream.
     Unhover(u32),
     ToggleWindow(String),
-    /// Fetch the last 60 s of a metric's history series.
-    History(String),
+    /// Fetch the last 60 s of these history series for a metric.
+    History(String, &'static [&'static str]),
 }
 
 /// What the daemon told us.
@@ -138,9 +138,9 @@ async fn session(out: &mut Sender<Event>) -> zbus::Result<()> {
                     Cmd::ToggleWindow(m) => {
                         let _ = proxy.toggle_window(&m).await;
                     }
-                    Cmd::History(m) => {
+                    Cmd::History(m, names) => {
                         let mut series = Vec::new();
-                        for s in crate::model::series(&m) {
+                        for s in names {
                             let (_, _, max) = proxy.history(s, 60).await.unwrap_or_default();
                             series.push(max);
                         }

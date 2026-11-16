@@ -43,6 +43,9 @@ fn main() {
     time("diskstats", n, || {
         d.sample(1.0).unwrap();
     });
+    time("statvfs /", n, || {
+        masthead_probe::fs::space(std::path::Path::new("/"));
+    });
     let mut sys = System::open(&r).unwrap();
     time("loadavg", n, || {
         sys.loadavg().unwrap();

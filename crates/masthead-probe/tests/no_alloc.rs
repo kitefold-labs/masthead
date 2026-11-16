@@ -8,6 +8,7 @@
 use masthead_probe::Roots;
 use masthead_probe::cpu::{CpuStat, StatSnapshot};
 use masthead_probe::disk::Disks;
+use masthead_probe::fs::MountSpace;
 use masthead_probe::gpu::Gpus;
 use masthead_probe::hwmon;
 use masthead_probe::mem::Mem;
@@ -60,6 +61,7 @@ fn steady_state_tick_does_not_allocate() {
     let mut sensors = hwmon::discover(&roots);
     let pkg = hwmon::cpu_package(&sensors);
     let mut gpus = Gpus::open(&roots);
+    let mut space = MountSpace::open(&roots);
     let mut buf = Buf::default();
 
     let mut tick = |count: bool| {
@@ -69,6 +71,8 @@ fn steady_state_tick_does_not_allocate() {
         let _ = net.sample(1.0, Iface::physical).unwrap();
         let _ = disks.sample(1.0).unwrap();
         let _ = sys.loadavg().unwrap();
+        // 100 ticks include mounts-table rechecks.
+        let _ = space.sample("/");
         if let Some(i) = pkg {
             let _ = sensors[i].read(&mut buf);
         }

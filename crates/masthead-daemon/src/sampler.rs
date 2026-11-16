@@ -9,7 +9,7 @@ use masthead_api::detail::{
     BatteryDetail, CpuDetail, Describe, Detail, DiskDetail, DiskDevDetail, DiskInfo, FsDetail, GpuDetail, GpuInfo, IfaceDetail, IfaceInfo,
     MemDetail, NetDetail, ProcDetail, SensorDetail, SensorInfo, SystemDetail,
 };
-use masthead_core::config::Config;
+use masthead_core::config::{Config, DiskValue};
 use masthead_core::format;
 use masthead_core::tiers::Demand;
 use masthead_core::{Level, MetricId};
@@ -52,6 +52,9 @@ pub struct Sampler {
     net_rates: NetRates,
     disks: Option<Disks>,
     disk_rates: DiskRates,
+    bar_fs: fs::MountSpace,
+    /// Total and used bytes on `devices.filesystem`.
+    bar_space: Option<(u64, u64)>,
     sensors: Vec<Sensor>,
     gpus: Gpus,
     batteries: Vec<Battery>,
@@ -83,6 +86,8 @@ pub struct HistoryPoint {
     pub net_tx: f32,
     pub disk_read: f32,
     pub disk_write: f32,
+    /// Percent of the root filesystem's space used.
+    pub disk_used: f32,
     pub temp: f32,
     pub battery: f32,
 }
@@ -97,6 +102,7 @@ impl HistoryPoint {
             "net.tx" => self.net_tx,
             "disk.read" => self.disk_read,
             "disk.write" => self.disk_write,
+            "disk.used" => self.disk_used,
             "temp" => self.temp,
             "battery" => self.battery,
             _ => return None,
@@ -142,6 +148,8 @@ impl Sampler {
             net_rates: NetRates::default(),
             disks: Disks::open(&roots).ok(),
             disk_rates: DiskRates::default(),
+            bar_fs: fs::MountSpace::open(&roots),
+            bar_space: None,
             sensors: hwmon::discover(&roots),
             gpus: Gpus::open(&roots),
             batteries: masthead_probe::power::discover(&roots),
@@ -186,10 +194,11 @@ impl Sampler {
         if c.net || self.net.stale {
             self.net.rediscover(&self.roots);
         }
-        if c.block
-            && let Some(d) = &mut self.disks
-        {
-            d.rediscover(&self.roots);
+        if c.block {
+            self.bar_fs.recheck();
+            if let Some(d) = &mut self.disks {
+                d.rediscover(&self.roots);
+            }
         }
         if c.hwmon {
             self.sensors = hwmon::discover(&self.roots);
@@ -248,6 +257,7 @@ impl Sampler {
         if let Some(d) = &mut self.disks {
             self.disk_rates = d.sample(dt_rates)?;
         }
+        self.bar_space = self.bar_fs.sample(&cfg.devices.filesystem);
 
         let detail_sensors = demand.window || demand.hover.contains(&MetricId::Temp);
         let bar_sensor = self.bar_sensor(cfg);
@@ -291,6 +301,7 @@ impl Sampler {
             net_tx: if was_primed { self.net_rates.tx as f32 } else { f32::NAN },
             disk_read: if was_primed { self.disk_rates.read as f32 } else { f32::NAN },
             disk_write: if was_primed { self.disk_rates.write as f32 } else { f32::NAN },
+            disk_used: opt_f32(self.space_used_pct()),
             temp: opt_f32(bar_sensor.and_then(|i| self.sensors[i].value)),
             battery: opt_f32(self.battery.and_then(|b| b.percent)),
         })
@@ -335,6 +346,10 @@ impl Sampler {
         };
         self.levels.insert(m, l);
         l
+    }
+
+    fn space_used_pct(&self) -> Option<f64> {
+        self.bar_space.filter(|(total, _)| *total > 0).map(|(total, used)| used as f64 * 100.0 / total as f64)
     }
 
     fn primary_gpu<'a>(&'a self, cfg: &Config) -> Option<&'a Gpu> {
@@ -397,6 +412,16 @@ impl Sampler {
                     let text = format!("↓{} ↑{}", format::rate(r.rx, u.network, true), format::rate(r.tx, u.network, true));
                     let s = format!("↓ {}  ↑ {}", format::rate(r.rx, u.network, false), format::rate(r.tx, u.network, false));
                     (r.rx, text, s, None)
+                }
+                MetricId::Disk if cfg.bar.disk == DiskValue::Space => {
+                    let pct = self.space_used_pct();
+                    let text = pct.map_or_else(|| "–".to_owned(), format::percent);
+                    let mount = &cfg.devices.filesystem;
+                    let s = self.bar_space.map_or_else(
+                        || format!("{mount} is not a local mount"),
+                        |(total, used)| format!("{} of {} used on {mount}", format::bytes(used), format::bytes(total)),
+                    );
+                    (pct.unwrap_or(0.0), text, s, pct)
                 }
                 MetricId::Disk => {
                     let r = self.disk_rates;
@@ -549,7 +574,7 @@ impl Sampler {
         } else {
             Vec::new()
         };
-        DiskDetail { read: self.disk_rates.read, write: self.disk_rates.write, devices, filesystems }
+        DiskDetail { read: self.disk_rates.read, write: self.disk_rates.write, devices, filesystems, space_used: self.space_used_pct() }
     }
 
     fn sensor_details(&self) -> Vec<SensorDetail> {
@@ -739,5 +764,40 @@ mod tests {
         assert!(s.sample(&demand, &cfg).unwrap().cpu.is_nan());
         s.rediscover(Changes { net: true, block: true, hwmon: true, power_supply: true, drm: true });
         assert!(!s.net_stale());
+    }
+
+    #[test]
+    fn disk_shows_space_used() {
+        let d = machine();
+        std::fs::create_dir_all(d.path().join("sys/block/sda/device")).unwrap();
+        std::fs::write(d.path().join("sys/block/sda/size"), "1000\n").unwrap();
+        std::fs::write(d.path().join("proc/diskstats"), "   8 0 sda 10 0 300 5 20 0 1200 7 0 0 0\n").unwrap();
+        // The fixture directory stands in for a mounted partition.
+        let mount = d.path().to_str().unwrap().to_owned();
+        std::fs::write(d.path().join("proc/self/mounts"), format!("/dev/sda1 {mount} ext4 rw 0 0\n")).unwrap();
+        let mut s = Sampler::open(Roots::under(d.path())).unwrap();
+        let mut cfg = Config::default();
+        cfg.bar.metrics = vec![MetricId::Disk];
+        cfg.devices.filesystem.clone_from(&mount);
+        let demand = Demand { panel: true, ..Demand::default() };
+        let p = s.sample(&demand, &cfg).unwrap();
+        assert_eq!(s.panel_items(&cfg)[0].text, "r0B w0B");
+
+        let pct = s.space_used_pct().expect("statvfs on the mount");
+        assert!((p.disk_used - pct as f32).abs() < 1e-3);
+        assert_eq!(s.detail(Some(MetricId::Disk), &cfg, false, 0).disk.unwrap().space_used, Some(pct));
+        cfg.bar.disk = DiskValue::Space;
+        let it = &s.panel_items(&cfg)[0];
+        assert_eq!(it.text, format::percent(pct));
+        assert!(it.summary.ends_with(&format!(" used on {mount}")), "{}", it.summary);
+        cfg.thresholds.insert(MetricId::Disk, masthead_core::thresholds::Threshold { warn: -2.0, crit: -1.0 });
+        assert_eq!(s.panel_items(&cfg)[0].level, Level::Crit as u32);
+
+        // A path that is not a mount point shows no value, not its parent's.
+        cfg.devices.filesystem = "/".into();
+        let p = s.sample(&demand, &cfg).unwrap();
+        assert!(p.disk_used.is_nan());
+        let it = &s.panel_items(&cfg)[0];
+        assert_eq!((it.text.as_str(), it.summary.as_str(), it.level), ("–", "/ is not a local mount", 0));
     }
 }
