@@ -18,7 +18,7 @@ pub fn mem_short(bytes: u64, units: MemoryUnits) -> String {
         MemoryUnits::Decimal => 1e9,
     };
     let g = bytes as f64 / div;
-    if g >= 100.0 { format!("{g:.0}G") } else { format!("{g:.1}G") }
+    if g >= 99.95 { format!("{g:.0}G") } else { format!("{g:.1}G") }
 }
 
 /// Memory with a unit for popovers: `18.4 GiB`.
@@ -42,7 +42,8 @@ pub fn mem_long(bytes: u64, units: MemoryUnits) -> String {
 fn scaled(v: f64, base: f64) -> (f64, usize) {
     let mut v = v.max(0.0);
     let mut i = 0;
-    while v >= base && i < 4 {
+    // Compare the rounded figure, so 999.6 becomes 1.0 of the next unit, not 1000.
+    while v.round() >= base && i < 4 {
         v /= base;
         i += 1;
     }
@@ -50,7 +51,7 @@ fn scaled(v: f64, base: f64) -> (f64, usize) {
 }
 
 fn trim_num(v: f64, i: usize) -> String {
-    if i > 0 && v < 10.0 { format!("{v:.1}") } else { format!("{:.0}", v.round()) }
+    if i > 0 && v < 9.95 { format!("{v:.1}") } else { format!("{:.0}", v.round()) }
 }
 
 /// A transfer rate. `short` gives the bar form (`2.1M`), otherwise `2.1 MB/s`.
@@ -145,5 +146,8 @@ mod tests {
         assert_eq!(duration(540.0), "9m");
         assert_eq!(bytes(48_200_000_000), "48 GB");
         assert_eq!(bytes(1_100_000), "1.1 MB");
+        assert_eq!(rate(999_600.0, NetworkUnits::Bytes, true), "1.0M");
+        assert_eq!(rate(9_960.0, NetworkUnits::Bytes, true), "10K");
+        assert_eq!(mem_short(99_960_000_000, MemoryUnits::Decimal), "100G");
     }
 }

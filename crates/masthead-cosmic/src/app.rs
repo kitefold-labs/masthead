@@ -296,7 +296,7 @@ impl Applet {
         let content: Element<'_, Message> = if self.horizontal() {
             let mut r = row![tinted_icon(&it.id, icon_size, color)].spacing(6).align_y(Alignment::Center);
             if show_value {
-                r = r.push(value(it.text.clone(), None));
+                r = r.push(value(model::steady_text(&it.id, &it.text, false), None));
             }
             if show_trend {
                 r = r.push(trend());
@@ -306,7 +306,7 @@ impl Applet {
         } else {
             let mut c = column![tinted_icon(&it.id, icon_size, color)].spacing(2).align_x(Alignment::Center);
             if show_value {
-                c = c.push(value(model::compact_text(it, self.config.units), Some(10.0)));
+                c = c.push(value(model::steady_text(&it.id, &model::compact_text(it, self.config.units), true), Some(10.0)));
             }
             c.into()
         };
