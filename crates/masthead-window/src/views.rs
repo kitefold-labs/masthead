@@ -16,7 +16,7 @@ use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
 use cosmic::iced::widget::{Space, button, column, container, keyed_column, mouse_area, row, scrollable, svg, text};
 use cosmic::iced::{Alignment, Background, Border, Color, Font, Length, Padding};
 use masthead_api::detail::{GpuDetail, ProcDetail};
-use masthead_core::config::{BarStyle, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
+use masthead_core::config::{BarStyle, DiskValue, MemoryUnits, NetworkUnits, TemperatureUnits, TrayMode};
 use masthead_core::{Level, MetricId, format};
 
 const fn font(family: &'static str, weight: Weight) -> Font {
@@ -1049,6 +1049,15 @@ fn settings_page(app: &App) -> El<'_> {
         cosmic::widget::dropdown(&app::STYLE_OPTIONS[..], Some(style_idx), Message::BarStyle).into(),
         &p,
     ));
+    if avail.contains(&MetricId::Disk) {
+        bar_rows.push(setting(
+            "Disk",
+            "What the Disk item shows",
+            cosmic::widget::dropdown(&app::DISK_OPTIONS[..], Some(usize::from(cfg.bar.disk == DiskValue::Space)), Message::DiskValue)
+                .into(),
+            &p,
+        ));
+    }
 
     let units = vec![
         setting(

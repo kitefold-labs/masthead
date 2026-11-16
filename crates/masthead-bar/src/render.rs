@@ -71,7 +71,7 @@ pub fn line(o: &Options, items: &[PanelItem]) -> String {
             let mut class = vec!["masthead".to_owned(), level_name(worst).to_owned()];
             class.extend(sel.iter().map(|i| i.id.clone()));
             let mut v = json!({ "text": text, "tooltip": tooltip, "class": class });
-            if single && matches!(sel[0].id.as_str(), "cpu" | "gpu" | "temp" | "battery") {
+            if single && (matches!(sel[0].id.as_str(), "cpu" | "gpu" | "temp" | "battery") || sel[0].disk_space()) {
                 v["percentage"] = json!(sel[0].value.round().clamp(0.0, 100.0) as u32);
             }
             v.to_string()

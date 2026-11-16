@@ -48,6 +48,17 @@ pub enum BarStyle {
     Compact,
 }
 
+/// What the Disk bar item shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiskValue {
+    /// Read and write rates: `r2.1M w180K`.
+    #[default]
+    Io,
+    /// Percent of the root filesystem's space used: `71%`.
+    Space,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TrayMode {
@@ -63,11 +74,16 @@ pub enum TrayMode {
 pub struct Bar {
     pub metrics: Vec<MetricId>,
     pub style: BarStyle,
+    pub disk: DiskValue,
 }
 
 impl Default for Bar {
     fn default() -> Self {
-        Self { metrics: vec![MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Net, MetricId::Temp], style: BarStyle::Values }
+        Self {
+            metrics: vec![MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Net, MetricId::Temp],
+            style: BarStyle::Values,
+            disk: DiskValue::Io,
+        }
     }
 }
 
@@ -277,6 +293,9 @@ mod tests {
         assert_eq!(c.threshold(MetricId::Temp), Some(Threshold { warn: 80.0, crit: 90.0 }));
         assert_eq!(c.threshold(MetricId::Disk), Some(Threshold { warn: 90.0, crit: 95.0 }));
         assert_eq!(c.threshold(MetricId::Net), None);
+        assert_eq!(c.bar.disk, DiskValue::Io);
+        assert_eq!(Config::parse("[bar]\ndisk=\"space\"\n").unwrap().bar.disk, DiskValue::Space);
+        assert!(Config::parse("[bar]\ndisk=\"free\"\n").is_err());
     }
 
     #[test]

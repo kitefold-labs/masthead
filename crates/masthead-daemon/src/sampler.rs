@@ -9,7 +9,7 @@ use masthead_api::detail::{
     BatteryDetail, CpuDetail, Describe, Detail, DiskDetail, DiskDevDetail, DiskInfo, FsDetail, GpuDetail, GpuInfo, IfaceDetail, IfaceInfo,
     MemDetail, NetDetail, ProcDetail, SensorDetail, SensorInfo, SystemDetail,
 };
-use masthead_core::config::Config;
+use masthead_core::config::{Config, DiskValue};
 use masthead_core::format;
 use masthead_core::tiers::Demand;
 use masthead_core::{Level, MetricId};
@@ -52,6 +52,8 @@ pub struct Sampler {
     net_rates: NetRates,
     disks: Option<Disks>,
     disk_rates: DiskRates,
+    /// Total and used bytes of the root filesystem.
+    root_space: Option<(u64, u64)>,
     sensors: Vec<Sensor>,
     gpus: Gpus,
     batteries: Vec<Battery>,
@@ -83,6 +85,8 @@ pub struct HistoryPoint {
     pub net_tx: f32,
     pub disk_read: f32,
     pub disk_write: f32,
+    /// Percent of the root filesystem's space used.
+    pub disk_used: f32,
     pub temp: f32,
     pub battery: f32,
 }
@@ -97,6 +101,7 @@ impl HistoryPoint {
             "net.tx" => self.net_tx,
             "disk.read" => self.disk_read,
             "disk.write" => self.disk_write,
+            "disk.used" => self.disk_used,
             "temp" => self.temp,
             "battery" => self.battery,
             _ => return None,
@@ -142,6 +147,7 @@ impl Sampler {
             net_rates: NetRates::default(),
             disks: Disks::open(&roots).ok(),
             disk_rates: DiskRates::default(),
+            root_space: None,
             sensors: hwmon::discover(&roots),
             gpus: Gpus::open(&roots),
             batteries: masthead_probe::power::discover(&roots),
@@ -248,6 +254,7 @@ impl Sampler {
         if let Some(d) = &mut self.disks {
             self.disk_rates = d.sample(dt_rates)?;
         }
+        self.root_space = fs::space(std::path::Path::new("/"));
 
         let detail_sensors = demand.window || demand.hover.contains(&MetricId::Temp);
         let bar_sensor = self.bar_sensor(cfg);
@@ -291,6 +298,7 @@ impl Sampler {
             net_tx: if was_primed { self.net_rates.tx as f32 } else { f32::NAN },
             disk_read: if was_primed { self.disk_rates.read as f32 } else { f32::NAN },
             disk_write: if was_primed { self.disk_rates.write as f32 } else { f32::NAN },
+            disk_used: opt_f32(self.root_used_pct()),
             temp: opt_f32(bar_sensor.and_then(|i| self.sensors[i].value)),
             battery: opt_f32(self.battery.and_then(|b| b.percent)),
         })
@@ -335,6 +343,10 @@ impl Sampler {
         };
         self.levels.insert(m, l);
         l
+    }
+
+    fn root_used_pct(&self) -> Option<f64> {
+        self.root_space.filter(|(total, _)| *total > 0).map(|(total, used)| used as f64 * 100.0 / total as f64)
     }
 
     fn primary_gpu<'a>(&'a self, cfg: &Config) -> Option<&'a Gpu> {
@@ -397,6 +409,15 @@ impl Sampler {
                     let text = format!("↓{} ↑{}", format::rate(r.rx, u.network, true), format::rate(r.tx, u.network, true));
                     let s = format!("↓ {}  ↑ {}", format::rate(r.rx, u.network, false), format::rate(r.tx, u.network, false));
                     (r.rx, text, s, None)
+                }
+                MetricId::Disk if cfg.bar.disk == DiskValue::Space => {
+                    let pct = self.root_used_pct();
+                    let text = pct.map_or_else(|| "–".to_owned(), format::percent);
+                    let s = self
+                        .root_space
+                        .map(|(total, used)| format!("{} of {} used on /", format::bytes(used), format::bytes(total)))
+                        .unwrap_or_default();
+                    (pct.unwrap_or(0.0), text, s, pct)
                 }
                 MetricId::Disk => {
                     let r = self.disk_rates;
@@ -739,5 +760,29 @@ mod tests {
         assert!(s.sample(&demand, &cfg).unwrap().cpu.is_nan());
         s.rediscover(Changes { net: true, block: true, hwmon: true, power_supply: true, drm: true });
         assert!(!s.net_stale());
+    }
+
+    #[test]
+    fn disk_shows_space_used() {
+        let d = machine();
+        std::fs::create_dir_all(d.path().join("sys/block/sda/device")).unwrap();
+        std::fs::write(d.path().join("sys/block/sda/size"), "1000\n").unwrap();
+        std::fs::write(d.path().join("proc/diskstats"), "   8 0 sda 10 0 300 5 20 0 1200 7 0 0 0\n").unwrap();
+        let mut s = Sampler::open(Roots::under(d.path())).unwrap();
+        let mut cfg = Config::default();
+        cfg.bar.metrics = vec![MetricId::Disk];
+        let demand = Demand { panel: true, ..Demand::default() };
+        let p = s.sample(&demand, &cfg).unwrap();
+        assert_eq!(s.panel_items(&cfg)[0].text, "r0B w0B");
+
+        // The real root filesystem: the fixture only replaces /proc and /sys.
+        let pct = s.root_used_pct().expect("statvfs on /");
+        assert!((p.disk_used - pct as f32).abs() < 1e-3);
+        cfg.bar.disk = DiskValue::Space;
+        let it = &s.panel_items(&cfg)[0];
+        assert_eq!(it.text, format::percent(pct));
+        assert!(it.summary.ends_with(" used on /"), "{}", it.summary);
+        cfg.thresholds.insert(MetricId::Disk, masthead_core::thresholds::Threshold { warn: -2.0, crit: -1.0 });
+        assert_eq!(s.panel_items(&cfg)[0].level, Level::Crit as u32);
     }
 }

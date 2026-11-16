@@ -58,15 +58,22 @@ pub fn parse_mounts(text: &str) -> Vec<(String, String, String)> {
     out
 }
 
+/// Total and used bytes of the filesystem holding `path`. One `statvfs`, so
+/// call it only on local mounts.
+pub fn space(path: &Path) -> Option<(u64, u64)> {
+    let st = rustix::fs::statvfs(path).ok()?;
+    let total = st.f_blocks * st.f_frsize;
+    let free = st.f_bfree * st.f_frsize;
+    Some((total, total.saturating_sub(free)))
+}
+
 pub fn usage(roots: &Roots) -> Vec<FsUsage> {
     let Ok(text) = std::fs::read_to_string(roots.proc.join("self/mounts")) else { return Vec::new() };
     parse_mounts(&text)
         .into_iter()
         .filter_map(|(device, mount, fstype)| {
-            let st = rustix::fs::statvfs(Path::new(&mount)).ok()?;
-            let total = st.f_blocks * st.f_frsize;
-            let free = st.f_bfree * st.f_frsize;
-            Some(FsUsage { mount, device, fstype, total_bytes: total, used_bytes: total.saturating_sub(free) })
+            let (total, used) = space(Path::new(&mount))?;
+            Some(FsUsage { mount, device, fstype, total_bytes: total, used_bytes: used })
         })
         .collect()
 }

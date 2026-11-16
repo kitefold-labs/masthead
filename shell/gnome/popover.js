@@ -227,8 +227,13 @@ class MastheadPopover extends St.BoxLayout {
             this._setExtra(0, null);
         } else if (m === 'disk' && d.disk) {
             const k = d.disk;
-            big = `r${F.diskRate(k.read, true)}`;
-            unit = `w${F.diskRate(k.write, true)}`;
+            if (F.diskSpace(item)) {
+                big = item.text.endsWith('%') ? `${Math.round(item.value)}` : item.text;
+                unit = item.text.endsWith('%') ? '% of / used' : '';
+            } else {
+                big = `r${F.diskRate(k.read, true)}`;
+                unit = `w${F.diskRate(k.write, true)}`;
+            }
             dev = [...new Set(k.devices.map(x => x.model).filter(Boolean))].join(' · ');
             rows.push(['Read', F.diskRate(k.read)]);
             rows.push(['Write', F.diskRate(k.write)]);

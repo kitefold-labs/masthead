@@ -34,7 +34,9 @@ pub fn steady_text(id: &str, text: &str, compact: bool) -> String {
         if i > 0 {
             out.push(' ');
         }
-        let split = if has_marker { part.chars().next().map_or(0, char::len_utf8) } else { 0 };
+        // Disk space (`71%`) has no marker.
+        let split_marker = has_marker && part.starts_with(|c: char| !c.is_ascii_digit() && c != '–');
+        let split = if split_marker { part.chars().next().map_or(0, char::len_utf8) } else { 0 };
         let (marker, value) = part.split_at(split);
         out.push_str(marker);
         out.extend(std::iter::repeat_n(' ', cells.saturating_sub(value.chars().count())));
@@ -47,7 +49,7 @@ pub fn steady_text(id: &str, text: &str, compact: bool) -> String {
 pub fn compact_text(item: &PanelItem, units: Units) -> String {
     match item.id.as_str() {
         "net" => format::rate(item.value, units.network, true),
-        "disk" => format::disk_rate(item.value, true),
+        "disk" if !item.disk_space() => format::disk_rate(item.value, true),
         "mem" => {
             let div = match units.memory {
                 MemoryUnits::Binary => f64::from(1u32 << 30),
@@ -70,6 +72,13 @@ pub fn big(item: &PanelItem, detail: Option<&Detail>, units: Units) -> Big {
     let pct = |v: f64| Big { value: format!("{}", v.round().clamp(0.0, 100.0) as u32), suffix: "%".into() };
     match item.id.as_str() {
         "cpu" | "gpu" | "battery" if item.text.ends_with('%') => pct(item.value),
+        "disk" if item.disk_space() => {
+            if item.text.ends_with('%') {
+                Big { suffix: "% of / used".into(), ..pct(item.value) }
+            } else {
+                Big { value: item.text.clone(), suffix: String::new() }
+            }
+        }
         "mem" => {
             let total = detail.and_then(|d| d.mem.as_ref()).map(|m| m.total);
             let used = format::mem_long(item.value as u64, units.memory);
@@ -261,8 +270,11 @@ fn link_speed(mbps: u32) -> String {
 }
 
 /// History series that feed the popover sparkline, primary first.
-pub fn series(id: &str) -> &'static [&'static str] {
-    match id {
+pub fn series(item: &PanelItem) -> &'static [&'static str] {
+    if item.disk_space() {
+        return &["disk.used"];
+    }
+    match item.id.as_str() {
         "cpu" => &["cpu"],
         "mem" => &["mem"],
         "gpu" => &["gpu"],
@@ -295,9 +307,10 @@ pub fn mem_total(describe: &Describe, detail: Option<&Detail>) -> u64 {
 }
 
 /// The sparkline's vertical scale.
-pub fn spark_max(id: &str, series: &[Vec<f64>], mem_total: u64) -> f64 {
-    match id {
+pub fn spark_max(item: &PanelItem, series: &[Vec<f64>], mem_total: u64) -> f64 {
+    match item.id.as_str() {
         "cpu" | "gpu" | "battery" | "temp" => 100.0,
+        "disk" if item.disk_space() => 100.0,
         "mem" if mem_total > 0 => mem_total as f64,
         _ => nice_max(series),
     }
@@ -327,6 +340,7 @@ mod tests {
         assert_eq!(compact_text(&item("mem", 19_756_849_152.0, "18.4G"), u), "18G");
         assert_eq!(compact_text(&item("net", 2_100_000.0, "↓2.1M ↑180K"), u), "2.1M");
         assert_eq!(compact_text(&item("disk", 60e6, "r60M w3M"), u), "60M");
+        assert_eq!(compact_text(&item("disk", 71.0, "71%"), u), "71%");
         assert_eq!(compact_text(&item("cpu", 23.0, "23%"), u), "23%");
         let bits = Units { network: NetworkUnits::Bits, ..Units::default() };
         assert_eq!(compact_text(&item("net", 125_000.0, ""), bits), "1.0m");
@@ -344,6 +358,7 @@ mod tests {
         same("mem", false, &["9.8G", "21.1G", "128G"]);
         same("net", false, &["↓0B ↑0B", "↓37K ↑67K", "↓8.5K ↑130K", "↓1.2M ↑999K"]);
         same("disk", false, &["r0B w0B", "r60M w3.1M", "r999K w12K"]);
+        same("disk", false, &["7%", "71%", "100%", "–"]);
         same("net", true, &["0B", "8.5K", "999K"]);
         assert_eq!(steady_text("cpu", "7%", false), "  7%");
         assert_eq!(steady_text("net", "↓37K ↑8.5K", false), "↓ 37K ↑8.5K");
@@ -361,7 +376,8 @@ mod tests {
         let n = Detail { net: Some(NetDetail { rx: 2_100_000.0, tx: 180_000.0, ..NetDetail::default() }), ..Detail::default() };
         assert_eq!(big(&item("net", 0.0, ""), Some(&n), u), Big { value: "↓2.1M".into(), suffix: "↑180K".into() });
         assert_eq!(big(&item("gpu", 0.0, "off"), None, u).value, "off");
-        assert_eq!(big(&item("disk", 5e6, ""), None, u).value, "5.0M");
+        assert_eq!(big(&item("disk", 5e6, "r5.0M w0B"), None, u).value, "5.0M");
+        assert_eq!(big(&item("disk", 71.4, "71%"), None, u), Big { value: "71".into(), suffix: "% of / used".into() });
     }
 
     #[test]
@@ -447,8 +463,10 @@ mod tests {
 
     #[test]
     fn scales() {
-        assert_eq!(series("net"), &["net.rx", "net.tx"]);
-        assert_eq!(series("nope").len(), 0);
+        assert_eq!(series(&item("net", 0.0, "")), &["net.rx", "net.tx"]);
+        assert_eq!(series(&item("disk", 0.0, "r0B w0B")), &["disk.read", "disk.write"]);
+        assert_eq!(series(&item("disk", 71.0, "71%")), &["disk.used"]);
+        assert_eq!(series(&item("nope", 0.0, "")).len(), 0);
         assert!((nice_max(&[vec![0.0, 180.0, f64::NAN]]) - 200.0).abs() < 1e-9);
         assert!((nice_max(&[vec![]]) - 1.0).abs() < 1e-9);
         assert!((nice_max(&[vec![9.9e6]]) - 1e7).abs() < 1e-3);
@@ -457,9 +475,11 @@ mod tests {
         assert_eq!(mem_total(&desc, None), 64);
         assert_eq!(mem_total(&desc, Some(&d)), 128);
         assert_eq!(device(&item("mem", 0.0, ""), &Describe::default(), None), "");
-        assert!((spark_max("mem", &[], 64) - 64.0).abs() < 1e-9);
-        assert!((spark_max("mem", &[vec![3.0]], 0) - 5.0).abs() < 1e-9);
-        assert!((spark_max("cpu", &[], 0) - 100.0).abs() < 1e-9);
+        assert!((spark_max(&item("mem", 0.0, ""), &[], 64) - 64.0).abs() < 1e-9);
+        assert!((spark_max(&item("mem", 0.0, ""), &[vec![3.0]], 0) - 5.0).abs() < 1e-9);
+        assert!((spark_max(&item("cpu", 0.0, ""), &[], 0) - 100.0).abs() < 1e-9);
+        assert!((spark_max(&item("disk", 0.0, "7%"), &[vec![3.0]], 0) - 100.0).abs() < 1e-9);
+        assert!((spark_max(&item("disk", 0.0, "r3B w0B"), &[vec![3.0]], 0) - 5.0).abs() < 1e-9);
         let mut t = std::collections::VecDeque::new();
         for i in 0..10 {
             push_trend(&mut t, f64::from(i), 3);

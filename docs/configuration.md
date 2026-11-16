@@ -13,6 +13,7 @@ key is optional; these are the defaults:
 [bar]
 metrics = ["cpu", "mem", "gpu", "net", "temp"]   # also: disk, battery
 style = "values"          # values | trend | compact
+disk = "io"               # io: read and write rates | space: % of / used
 
 [units]
 memory = "binary"         # binary (GiB) | decimal (GB)
@@ -24,8 +25,8 @@ warn = 85
 crit = 95
 
 [thresholds.disk]         # % of a filesystem's space used; colors the
-warn = 90                 # window's space meters, not the Disk bar item
-crit = 95
+warn = 90                 # window's space meters, and the Disk bar item
+crit = 95                 # when bar.disk = "space"
 
 [devices]
 gpu = "auto"              # or a PCI address: "0000:01:00.0"

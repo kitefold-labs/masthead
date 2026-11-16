@@ -42,7 +42,9 @@ struct Item {
 
 impl Item {
     fn label(&self) -> String {
-        if self.labels { steady_label(&self.id, &self.text) } else { String::new() }
+        // Disk space (`71%`) pads like a percent, without a decimal point.
+        let id = if masthead_api::is_disk_space(&self.id, &self.text) { "cpu" } else { self.id.as_str() };
+        if self.labels { steady_label(id, &self.text) } else { String::new() }
     }
 }
 
@@ -131,6 +133,7 @@ fn path(id: &str) -> String {
 fn fraction(it: &PanelItem, mem_total: u64) -> Option<f64> {
     match it.id.as_str() {
         "cpu" | "gpu" | "temp" | "battery" => Some(it.value / 100.0),
+        "disk" if it.disk_space() => Some(it.value / 100.0),
         "mem" if mem_total > 0 => Some(it.value / mem_total as f64),
         _ => None,
     }
@@ -139,7 +142,7 @@ fn fraction(it: &PanelItem, mem_total: u64) -> Option<f64> {
 /// The icon pixmap. With labels it is only a fallback for a missing themed
 /// icon, so it carries the gauge but not the value, which the label shows.
 fn pixmap(it: &PanelItem, mem_total: u64, labels: bool) -> Vec<Pixmap> {
-    let text = if labels { String::new() } else { glyphs::icon_text(&it.id, it.value) };
+    let text = if labels { String::new() } else { glyphs::icon_text(if it.disk_space() { "cpu" } else { &it.id }, it.value) };
     vec![(glyphs::SIZE, glyphs::SIZE, glyphs::render(&text, fraction(it, mem_total), it.level))]
 }
 
@@ -251,8 +254,12 @@ mod tests {
         let it = PanelItem { id: "mem".into(), value: 8.0 * f64::from(1u32 << 30), text: "8.0G".into(), level: 0, summary: String::new() };
         assert_eq!(fraction(&it, 16 << 30), Some(0.5));
         assert_eq!(pixmap(&it, 0, false)[0].2.len(), 32 * 32 * 4);
-        let net = PanelItem { id: "net".into(), ..it };
+        let net = PanelItem { id: "net".into(), ..it.clone() };
         assert_eq!(fraction(&net, 1), None);
+        let disk = PanelItem { id: "disk".into(), value: 71.0, text: "71%".into(), ..it.clone() };
+        assert_eq!(fraction(&disk, 1), Some(0.71));
+        let io = PanelItem { id: "disk".into(), text: "r0B w0B".into(), ..it };
+        assert_eq!(fraction(&io, 1), None);
         assert_eq!(path("cpu"), "/StatusNotifierItem/cpu");
         assert_eq!(title("cpu"), "CPU");
         assert_eq!(title("x"), "x");

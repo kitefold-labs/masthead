@@ -21,6 +21,14 @@ function trimNum(v, i) {
     return i > 0 && v < 9.95 ? v.toFixed(1) : `${Math.round(v)}`;
 }
 
+/**
+ * Whether the Disk item shows space used on / (`71%`) rather than read and
+ * write rates (`r2.1M w0B`). Mirrors PanelItem::disk_space.
+ */
+export function diskSpace(item) {
+    return item?.id === 'disk' && !(item.text ?? '').startsWith('r');
+}
+
 export function percent(v) {
     return `${Math.round(Math.min(100, Math.max(0, v)))}%`;
 }
@@ -93,3 +101,8 @@ export const SERIES = {
     temp: ['temp'],
     battery: ['battery'],
 };
+
+/** History series for a bar item, as SERIES but following the Disk item's mode. */
+export function seriesFor(metric, item) {
+    return diskSpace(item) ? ['disk.used'] : SERIES[metric] ?? [];
+}

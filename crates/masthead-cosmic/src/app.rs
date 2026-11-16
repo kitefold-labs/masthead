@@ -199,6 +199,12 @@ impl Applet {
         }
     }
 
+    /// Fetch the popover sparkline for metric `id`.
+    fn send_history(&self, id: String) {
+        let series = self.items.iter().find(|i| i.id == id).map_or(&[][..], model::series);
+        self.send(Cmd::History(id, series));
+    }
+
     fn horizontal(&self) -> bool {
         matches!(self.core.applet.anchor, PanelAnchor::Top | PanelAnchor::Bottom)
     }
@@ -233,7 +239,7 @@ impl Applet {
     fn open_popup(&mut self, id: String) -> Task<Message> {
         self.detail = None;
         self.history.clear();
-        self.send(Cmd::History(id.clone()));
+        self.send_history(id.clone());
         cosmic::surface::surface_task(cosmic::surface::action::app_popup::<Self>(
             |_| cosmic::surface::action::LiveSettings::default(),
             move |app: &mut Self| {
@@ -284,7 +290,7 @@ impl Applet {
         };
         let trend = || -> Element<'_, Message> {
             let series = vec![self.trends.get(&it.id).map(|d| d.iter().copied().collect()).unwrap_or_default()];
-            let max = if matches!(it.id.as_str(), "cpu" | "gpu" | "temp" | "battery") {
+            let max = if matches!(it.id.as_str(), "cpu" | "gpu" | "temp" | "battery") || it.disk_space() {
                 100.0
             } else if it.id == "mem" && model::mem_total(&self.describe, None) > 0 {
                 model::mem_total(&self.describe, None) as f64
@@ -349,7 +355,7 @@ impl Applet {
         } else {
             self.history.clone()
         };
-        let max = model::spark_max(id, &series, model::mem_total(&self.describe, self.detail.as_ref()));
+        let max = model::spark_max(it, &series, model::mem_total(&self.describe, self.detail.as_ref()));
         let spark = canvas(Spark { series, max, palette: p }).width(Length::Fill).height(Length::Fixed(46.0));
 
         let mut body = column![header, big_row, spark].spacing(8);
@@ -488,21 +494,27 @@ impl cosmic::Application for Applet {
                 }
                 Event::Panel(items) => {
                     for it in &items {
-                        model::push_trend(self.trends.entry(it.id.clone()).or_default(), it.value, TREND_POINTS);
+                        let trend = self.trends.entry(it.id.clone()).or_default();
+                        // Rates and percents do not share a scale: restart the
+                        // Disk trend when its mode changes.
+                        if self.items.iter().find(|p| p.id == it.id).is_some_and(|p| p.disk_space() != it.disk_space()) {
+                            trend.clear();
+                        }
+                        model::push_trend(trend, it.value, TREND_POINTS);
                     }
                     self.items = items;
                     let refresh = self.popup.as_ref().map(|(_, m)| m.clone());
                     if let Some(m) = refresh
                         && self.detail.is_none()
                     {
-                        self.send(Cmd::History(m));
+                        self.send_history(m);
                     }
                 }
                 Event::Detail(m, d) => {
                     if self.popup.as_ref().is_some_and(|(_, open)| *open == m) {
                         self.detail = Some(*d);
                         // The daemon samples once a second; fetch the line to match.
-                        self.send(Cmd::History(m));
+                        self.send_history(m);
                     }
                 }
                 Event::History(m, s) => {

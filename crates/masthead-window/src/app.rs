@@ -18,7 +18,7 @@ use cosmic::{Application, ApplicationExt, Element};
 use masthead_api::PanelItem;
 use masthead_api::detail::{Describe, Detail};
 use masthead_core::MetricId;
-use masthead_core::config::{BarStyle, Config, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
+use masthead_core::config::{BarStyle, Config, DiskValue, MemoryUnits, NetworkUnits, TemperatureUnits, Theme, TrayMode};
 use masthead_core::thresholds::Threshold;
 use std::collections::{BTreeMap, HashMap};
 use std::time::{Duration, Instant};
@@ -57,6 +57,7 @@ pub enum Message {
     BarMetric(MetricId, bool),
     MoveMetric(MetricId, i32),
     BarStyle(usize),
+    DiskValue(usize),
     MemUnits(usize),
     NetUnits(usize),
     TempUnits(usize),
@@ -159,6 +160,7 @@ pub fn effective_dark(theme: Theme, system_dark: bool) -> bool {
 pub const THRESHOLD_METRICS: [MetricId; 5] = [MetricId::Cpu, MetricId::Mem, MetricId::Gpu, MetricId::Disk, MetricId::Temp];
 
 pub const STYLE_OPTIONS: [&str; 3] = ["Values", "Values and trend", "Compact trend"];
+pub const DISK_OPTIONS: [&str; 2] = ["Read and write rates", "Space used on /"];
 pub const MEM_OPTIONS: [&str; 2] = ["Binary (GiB)", "Decimal (GB)"];
 pub const NET_OPTIONS: [&str; 2] = ["Bytes (MB/s)", "Bits (Mb/s)"];
 pub const TEMP_OPTIONS: [&str; 2] = ["Celsius", "Fahrenheit"];
@@ -506,6 +508,7 @@ impl Application for App {
                 }
             }
             Message::BarStyle(i) => self.edit(|c| c.bar.style = [BarStyle::Values, BarStyle::Trend, BarStyle::Compact][i.min(2)]),
+            Message::DiskValue(i) => self.edit(|c| c.bar.disk = if i == 0 { DiskValue::Io } else { DiskValue::Space }),
             Message::MemUnits(i) => self.edit(|c| c.units.memory = if i == 0 { MemoryUnits::Binary } else { MemoryUnits::Decimal }),
             Message::NetUnits(i) => self.edit(|c| c.units.network = if i == 0 { NetworkUnits::Bytes } else { NetworkUnits::Bits }),
             Message::TempUnits(i) => {
