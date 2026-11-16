@@ -31,7 +31,7 @@ payloads at any time; anything else that changes gets a new interface name.
 Metric ids: `cpu`, `mem`, `gpu`, `net`, `disk`, `temp`, `battery`.
 
 History series: `cpu`, `mem` (bytes used), `gpu`, `net.rx`, `net.tx`,
-`disk.read`, `disk.write` (bytes per second), `disk.used` (% of `/` used),
+`disk.read`, `disk.write` (bytes per second), `disk.used` (% used of `devices.filesystem`),
 `temp` (°C), `battery` (%).
 
 ## Signals
@@ -47,7 +47,7 @@ History series: `cpu`, `mem` (bytes used), `gpu`, `net.rx`, `net.tx`,
 | Field | Meaning |
 |---|---|
 | `id` | Metric id. Items arrive in the order of `bar.metrics` in the config. |
-| `value` | Raw value: percent, bytes (`mem`), bytes per second (`net` download, `disk` read plus write), °C. With `bar.disk = "space"`, `disk` is the percent of `/` used. |
+| `value` | Raw value: percent, bytes (`mem`), bytes per second (`net` download, `disk` read plus write), °C. With `bar.disk = "space"`, `disk` is the percent used of `devices.filesystem`. |
 | `text` | Formatted in the user's units: `23%`, `18.4G`, `↓2.1M ↑180K`, `r60M w3.1M`, `64°`. A `disk` text that does not start with `r` is space used: `71%`. |
 | `level` | 0 normal, 1 warn, 2 critical. |
 | `summary` | One line for a tooltip: `load 4.12 · 64 °C`. |

@@ -182,6 +182,9 @@ pub struct DiskDetail {
     pub devices: Vec<DiskDevDetail>,
     /// Window tier only.
     pub filesystems: Vec<FsDetail>,
+    /// Percent used on `devices.filesystem`, the filesystem the Disk bar item
+    /// can show; `None` when that path is not a local mount.
+    pub space_used: Option<f64>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

@@ -1122,7 +1122,9 @@ fn settings_page(app: &App) -> El<'_> {
     let gpu_idx = gpu_keys.iter().position(|k| *k == cfg.devices.gpu).unwrap_or(0);
     let (sen_labels, sen_keys) = app.sensor_choices();
     let sen_idx = sen_keys.iter().position(|k| *k == cfg.devices.temperature).unwrap_or(0);
-    let devices = vec![
+    let (fs_labels, fs_keys) = app.filesystem_choices(&cfg.devices.filesystem);
+    let fs_idx = fs_keys.iter().position(|k| *k == cfg.devices.filesystem);
+    let mut devices = vec![
         setting("GPU in the bar", "", cosmic::widget::dropdown(gpu_labels, Some(gpu_idx), Message::Gpu).into(), &p),
         setting("Temperature sensor", "", cosmic::widget::dropdown(sen_labels, Some(sen_idx), Message::TempSensor).into(), &p),
         setting(
@@ -1132,6 +1134,17 @@ fn settings_page(app: &App) -> El<'_> {
             &p,
         ),
     ];
+    if avail.contains(&MetricId::Disk) {
+        devices.insert(
+            2,
+            setting(
+                "Filesystem in the bar",
+                "Whose space the Disk item shows when set to Space used",
+                cosmic::widget::dropdown(fs_labels, fs_idx, Message::Filesystem).into(),
+                &p,
+            ),
+        );
+    }
 
     let tray_idx = match cfg.tray.mode {
         TrayMode::Auto => 0,

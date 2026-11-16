@@ -74,7 +74,7 @@ pub fn big(item: &PanelItem, detail: Option<&Detail>, units: Units) -> Big {
         "cpu" | "gpu" | "battery" if item.text.ends_with('%') => pct(item.value),
         "disk" if item.disk_space() => {
             if item.text.ends_with('%') {
-                Big { suffix: "% of / used".into(), ..pct(item.value) }
+                Big { suffix: "% used".into(), ..pct(item.value) }
             } else {
                 Big { value: item.text.clone(), suffix: String::new() }
             }
@@ -132,6 +132,8 @@ pub fn device(item: &PanelItem, describe: &Describe, detail: Option<&Detail>) ->
             .and_then(|d| d.net.as_ref())
             .map(|n| n.interfaces.iter().filter(|i| i.counted).map(|i| i.name.as_str()).collect::<Vec<_>>().join(" · "))
             .unwrap_or_default(),
+        // `412 GB of 1.0 TB used on /home`, or why there is no value.
+        "disk" if item.disk_space() => item.summary.clone(),
         "disk" => format!("{} devices", describe.disks.len()),
         "temp" => item.summary.clone(),
         _ => String::new(),
@@ -377,7 +379,7 @@ mod tests {
         assert_eq!(big(&item("net", 0.0, ""), Some(&n), u), Big { value: "↓2.1M".into(), suffix: "↑180K".into() });
         assert_eq!(big(&item("gpu", 0.0, "off"), None, u).value, "off");
         assert_eq!(big(&item("disk", 5e6, "r5.0M w0B"), None, u).value, "5.0M");
-        assert_eq!(big(&item("disk", 71.4, "71%"), None, u), Big { value: "71".into(), suffix: "% of / used".into() });
+        assert_eq!(big(&item("disk", 71.4, "71%"), None, u), Big { value: "71".into(), suffix: "% used".into() });
     }
 
     #[test]
@@ -475,6 +477,9 @@ mod tests {
         assert_eq!(mem_total(&desc, None), 64);
         assert_eq!(mem_total(&desc, Some(&d)), 128);
         assert_eq!(device(&item("mem", 0.0, ""), &Describe::default(), None), "");
+        let space = PanelItem { summary: "4 GB of 8 GB used on /home".into(), ..item("disk", 50.0, "50%") };
+        assert_eq!(device(&space, &Describe::default(), None), "4 GB of 8 GB used on /home");
+        assert_eq!(device(&item("disk", 0.0, "r0B w0B"), &Describe::default(), None), "0 devices");
         assert!((spark_max(&item("mem", 0.0, ""), &[], 64) - 64.0).abs() < 1e-9);
         assert!((spark_max(&item("mem", 0.0, ""), &[vec![3.0]], 0) - 5.0).abs() < 1e-9);
         assert!((spark_max(&item("cpu", 0.0, ""), &[], 0) - 100.0).abs() < 1e-9);

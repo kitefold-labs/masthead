@@ -229,12 +229,14 @@ class MastheadPopover extends St.BoxLayout {
             const k = d.disk;
             if (F.diskSpace(item)) {
                 big = item.text.endsWith('%') ? `${Math.round(item.value)}` : item.text;
-                unit = item.text.endsWith('%') ? '% of / used' : '';
+                unit = item.text.endsWith('%') ? '% used' : '';
+                // `412 GB of 1.0 TB used on /home`, or why there is no value.
+                dev = item.summary;
             } else {
                 big = `r${F.diskRate(k.read, true)}`;
                 unit = `w${F.diskRate(k.write, true)}`;
+                dev = [...new Set(k.devices.map(x => x.model).filter(Boolean))].join(' · ');
             }
-            dev = [...new Set(k.devices.map(x => x.model).filter(Boolean))].join(' · ');
             rows.push(['Read', F.diskRate(k.read)]);
             rows.push(['Write', F.diskRate(k.write)]);
             for (const x of k.devices.slice(0, 4))

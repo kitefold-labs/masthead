@@ -171,6 +171,7 @@ fn detail(t: u64) -> Detail {
                     used: (i as u64 + 1) * (400 << 30),
                 })
                 .collect(),
+            space_used: Some(19.5),
         }),
         sensors: Some(
             (0..20)

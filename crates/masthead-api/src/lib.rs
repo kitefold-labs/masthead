@@ -30,8 +30,8 @@ pub struct PanelItem {
     /// Metric id: `cpu`, `mem`, `gpu`, `net`, `disk`, `temp`, `battery`.
     pub id: String,
     /// The raw value: percent, bytes, bytes per second (download for `net`,
-    /// read plus write for `disk`, or percent of `/` used when the bar is set
-    /// to show disk space) or °C.
+    /// read plus write for `disk`, or percent of `devices.filesystem` used when
+    /// the bar is set to show disk space) or °C.
     pub value: f64,
     /// Formatted for the bar, already in the user's units: `23%`, `↓2.1M ↑180K`.
     pub text: String,
@@ -42,7 +42,7 @@ pub struct PanelItem {
 }
 
 impl PanelItem {
-    /// Whether this is the Disk item showing space used on `/` (`71%`) rather
+    /// Whether this is the Disk item showing space used (`71%`) rather
     /// than read and write rates (`r2.1M w0B`). Its `value` is then a percent.
     pub fn disk_space(&self) -> bool {
         is_disk_space(&self.id, &self.text)

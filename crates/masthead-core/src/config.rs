@@ -55,7 +55,7 @@ pub enum DiskValue {
     /// Read and write rates: `r2.1M w180K`.
     #[default]
     Io,
-    /// Percent of the root filesystem's space used: `71%`.
+    /// Percent of `devices.filesystem`'s space used: `71%`.
     Space,
 }
 
@@ -106,6 +106,8 @@ pub struct Devices {
     pub interfaces: Vec<String>,
     /// Count virtual interfaces (docker0, veth*, br-*) too.
     pub include_virtual_interfaces: bool,
+    /// Mount point whose space the Disk bar item shows with `bar.disk = "space"`.
+    pub filesystem: String,
     /// Read NVIDIA GPUs through NVIDIA's NVML library while GPU data is shown.
     /// It costs about 20 MB of memory; without it NVIDIA GPUs show no load.
     pub nvml: bool,
@@ -113,7 +115,14 @@ pub struct Devices {
 
 impl Default for Devices {
     fn default() -> Self {
-        Self { gpu: "auto".into(), temperature: "auto".into(), interfaces: Vec::new(), include_virtual_interfaces: false, nvml: true }
+        Self {
+            gpu: "auto".into(),
+            temperature: "auto".into(),
+            filesystem: "/".into(),
+            interfaces: Vec::new(),
+            include_virtual_interfaces: false,
+            nvml: true,
+        }
     }
 }
 
@@ -323,6 +332,8 @@ mod tests {
         let c = Config::parse("[devices]\ngpu=\"0000:01:00.0\"\ntemperature=\"k10temp/Tctl\"\n").unwrap();
         assert_eq!(c.devices.gpu_preference(), Some("0000:01:00.0"));
         assert_eq!(c.devices.temperature_preference(), Some("k10temp/Tctl"));
+        assert_eq!(Config::default().devices.filesystem, "/");
+        assert_eq!(Config::parse("[devices]\nfilesystem=\"/home\"\n").unwrap().devices.filesystem, "/home");
     }
 
     #[test]
