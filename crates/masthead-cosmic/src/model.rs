@@ -17,6 +17,32 @@ pub fn title(id: &str) -> &'static str {
     id.parse::<MetricId>().map_or("Masthead", MetricId::title)
 }
 
+/// Pad a bar text with spaces so it keeps one width in a monospace face as the
+/// value changes. Each space-separated part is padded to the widest value it
+/// can take (`100%`, `18.4G`, `↓999K`), with the spaces after the `↓`, `↑`,
+/// `r` or `w` marker, so the numbers stay right-aligned in place.
+/// `compact` texts, from [`compact_text`], have one part of up to 4 cells.
+pub fn steady_text(id: &str, text: &str, compact: bool) -> String {
+    let (cells, has_marker): (usize, bool) = match id {
+        _ if compact => (4, false),
+        "mem" => (5, false),
+        "net" | "disk" => (4, true),
+        _ => (4, false),
+    };
+    let mut out = String::with_capacity(text.len() + 8);
+    for (i, part) in text.split(' ').enumerate() {
+        if i > 0 {
+            out.push(' ');
+        }
+        let split = if has_marker { part.chars().next().map_or(0, char::len_utf8) } else { 0 };
+        let (marker, value) = part.split_at(split);
+        out.push_str(marker);
+        out.extend(std::iter::repeat_n(' ', cells.saturating_sub(value.chars().count())));
+        out.push_str(value);
+    }
+    out
+}
+
 /// Text for a vertical panel, where width is scarce: `23%`, `18G`, `2.1M`.
 pub fn compact_text(item: &PanelItem, units: Units) -> String {
     match item.id.as_str() {
@@ -304,6 +330,24 @@ mod tests {
         assert_eq!(compact_text(&item("cpu", 23.0, "23%"), u), "23%");
         let bits = Units { network: NetworkUnits::Bits, ..Units::default() };
         assert_eq!(compact_text(&item("net", 125_000.0, ""), bits), "1.0m");
+    }
+
+    #[test]
+    fn steady_widths() {
+        let same = |id: &str, compact: bool, texts: &[&str]| {
+            let w: Vec<usize> = texts.iter().map(|t| steady_text(id, t, compact).chars().count()).collect();
+            assert!(w.windows(2).all(|p| p[0] == p[1]), "{id}: {texts:?} -> {w:?}");
+        };
+        same("cpu", false, &["0%", "7%", "42%", "100%", "–"]);
+        same("gpu", false, &["5%", "100%", "off", "–"]);
+        same("temp", false, &["9°", "57°", "101°", "-5°", "–"]);
+        same("mem", false, &["9.8G", "21.1G", "128G"]);
+        same("net", false, &["↓0B ↑0B", "↓37K ↑67K", "↓8.5K ↑130K", "↓1.2M ↑999K"]);
+        same("disk", false, &["r0B w0B", "r60M w3.1M", "r999K w12K"]);
+        same("net", true, &["0B", "8.5K", "999K"]);
+        assert_eq!(steady_text("cpu", "7%", false), "  7%");
+        assert_eq!(steady_text("net", "↓37K ↑8.5K", false), "↓ 37K ↑8.5K");
+        assert_eq!(steady_text("disk", "r0B w12M", false), "r  0B w 12M");
     }
 
     #[test]

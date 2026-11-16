@@ -10,7 +10,7 @@ const GIB = 1024 ** 3;
 function scaled(v, base) {
     let i = 0;
     v = Math.max(0, v);
-    while (v >= base && i < 4) {
+    while (Math.round(v) >= base && i < 4) {
         v /= base;
         i++;
     }
@@ -18,7 +18,7 @@ function scaled(v, base) {
 }
 
 function trimNum(v, i) {
-    return i > 0 && v < 10 ? v.toFixed(1) : `${Math.round(v)}`;
+    return i > 0 && v < 9.95 ? v.toFixed(1) : `${Math.round(v)}`;
 }
 
 export function percent(v) {
