@@ -88,7 +88,9 @@ fn meter<'a>(fraction: f64, color: Color, p: &Palette, width: Length, height: f3
             Length::Fixed(px) => Length::Fixed((px * fraction).max(height)),
             _ => Length::FillPortion((fraction * 1000.0).round().max(10.0) as u16),
         };
-        fill = fill.push(container(Space::new().width(w).height(height)).style(style(color)));
+        // The width goes on the container: left to infer it from its content,
+        // a container turns any `FillPortion` into a plain `Fill`.
+        fill = fill.push(container(Space::new().height(height)).width(w).style(style(color)));
         if let Length::FillPortion(part) = w
             && part < 1000
         {
