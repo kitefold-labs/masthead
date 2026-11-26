@@ -54,10 +54,19 @@ per state:
 | `masthead-window` | CPU page (chart, per-core grid, top processes) | 1.5–1.9% | 33 MB |
 | `masthead-window` | Processes page | 1.2% | 33 MB |
 
-The COSMIC applet is over the resting CPU budget. It starts 38 threads, which
-come from libcosmic and its dependencies rather than Masthead's code, and it
-redraws in software. Trimming it is tracked in
-[#1](https://github.com/kitefold-labs/masthead/issues/1).
+The COSMIC applet's thread count came from iced's default executor, not from
+Masthead's code. `cosmic::applet::run` ignores `Application::Executor` (so
+`SingleThreadExecutor` does nothing there) and starts a tokio runtime with one
+worker per core, 32 on the test machine. `main.rs` now sets
+`TOKIO_WORKER_THREADS=1` before it starts, which took the applet from 38
+threads to 7 and RSS from 20.2 MB to 19.6 MB. Measured with
+`scripts/applet-soak.sh` (30 s, two runs) against a headless Weston 10 with
+no layer-shell and no COSMIC panel, so almost nothing is drawn: CPU was 0.055%
+before and after. That is not comparable to the 0.12% above, which was taken
+under GNOME Shell. Whether the idle CPU is under budget in a real COSMIC panel
+is not yet measured. Idle redraws, the
+`winit` and `multi-window` features and the popover-open figure are also untried.
+Tracked in [#1](https://github.com/kitefold-labs/masthead/issues/1).
 
 A disk scan on the same machine (one 3.6 TB ext4 root, 6.0 million files,
 1.07 million folders) takes 8.7 s cold and 2–3 s with the inode cache warm.
@@ -84,6 +93,7 @@ option reduces it. So the daemon:
 
 ## How it is enforced
 
+- **`scripts/applet-soak.sh`** measures `masthead-cosmic` (CPU from schedstat, RSS, threads by name) against a running Wayland compositor. It is manual; CI has no compositor.
 - **`scripts/soak.sh`** runs the daemon on a private bus with a temporary
   config and reads its CPU ticks from `/proc/<pid>/stat`, `VmRSS` from
   `/proc/<pid>/status` and `write_bytes` from `/proc/<pid>/io`. Over budget
