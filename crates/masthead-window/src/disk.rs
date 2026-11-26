@@ -56,6 +56,8 @@ pub enum DiskMsg {
     Toggle(Action, bool),
     SelectStale(GroupId),
     ClearGroup(GroupId),
+    /// Selects or deselects every item in a group, including collapsed ones.
+    SelectAll(GroupId, bool),
     Expand(GroupId),
     AskClean(GroupId),
     Confirm,
@@ -322,6 +324,16 @@ impl Disk {
                     self.selected.remove(&a);
                 }
             }
+            DiskMsg::SelectAll(g, on) => {
+                let ids: Vec<Action> = self.all_groups().filter(|x| x.id == g).flat_map(|x| &x.items).map(|i| i.action.clone()).collect();
+                if on {
+                    self.selected.extend(ids);
+                } else {
+                    for a in ids {
+                        self.selected.remove(&a);
+                    }
+                }
+            }
             DiskMsg::Expand(g) => {
                 if !self.expanded.remove(&g) {
                     self.expanded.insert(g);
@@ -515,5 +527,56 @@ impl Disk {
         self.cache_paths.remove(p);
         self.map_cache.clear();
         had
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use masthead_disk::findings::Item;
+    use std::path::PathBuf;
+
+    fn act(n: &str) -> Action {
+        Action::DeleteCache(PathBuf::from(n))
+    }
+
+    fn group(id: GroupId, names: &[&str]) -> Group {
+        let items = names
+            .iter()
+            .map(|n| Item { title: (*n).into(), detail: String::new(), size: 1, stale: false, action: act(n) })
+            .collect();
+        Group { id, title: "t", about: String::new(), items }
+    }
+
+    fn disk() -> Disk {
+        Disk { groups: vec![group(GroupId::BuildOutputs, &["a", "b", "c"]), group(GroupId::AppCaches, &["x", "y"])], ..Default::default() }
+    }
+
+    #[test]
+    fn select_all_then_deselect_all() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, true));
+        assert_eq!(d.selected.len(), 3);
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, false));
+        assert!(d.selected.is_empty());
+    }
+
+    #[test]
+    fn select_all_completes_partial_selection() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::Toggle(act("b"), true));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, true));
+        assert_eq!(d.selected.len(), 3);
+    }
+
+    #[test]
+    fn select_all_is_isolated_per_group() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::SelectAll(GroupId::AppCaches, true));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, true));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, false));
+        assert!(d.selected.contains(&act("x")) && d.selected.contains(&act("y")) && d.selected.len() == 2);
+        let _ = d.update(DiskMsg::SelectAll(GroupId::Trash, true));
+        assert_eq!(d.selected.len(), 2);
     }
 }
