@@ -56,6 +56,8 @@ pub enum DiskMsg {
     Toggle(Action, bool),
     SelectStale(GroupId),
     ClearGroup(GroupId),
+    /// Select or deselect every item in a group, including ones the collapsed list hides.
+    SelectAll(GroupId, bool),
     Expand(GroupId),
     AskClean(GroupId),
     Confirm,
@@ -322,6 +324,16 @@ impl Disk {
                     self.selected.remove(&a);
                 }
             }
+            DiskMsg::SelectAll(g, on) => {
+                let ids: Vec<Action> = self.all_groups().filter(|x| x.id == g).flat_map(|x| &x.items).map(|i| i.action.clone()).collect();
+                if on {
+                    self.selected.extend(ids);
+                } else {
+                    for a in ids {
+                        self.selected.remove(&a);
+                    }
+                }
+            }
             DiskMsg::Expand(g) => {
                 if !self.expanded.remove(&g) {
                     self.expanded.insert(g);
@@ -515,5 +527,48 @@ impl Disk {
         self.cache_paths.remove(p);
         self.map_cache.clear();
         had
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use masthead_disk::findings::Item;
+
+    fn act(n: &str) -> Action {
+        Action::DeleteCache(PathBuf::from(n))
+    }
+
+    fn group(id: GroupId, names: &[&str]) -> Group {
+        let items =
+            names.iter().map(|n| Item { title: (*n).into(), detail: String::new(), size: 1, stale: false, action: act(n) }).collect();
+        Group { id, title: "t", about: String::new(), items }
+    }
+
+    fn disk() -> Disk {
+        Disk { groups: vec![group(GroupId::BuildOutputs, &["a", "b", "c"]), group(GroupId::AppCaches, &["x", "y"])], ..Disk::default() }
+    }
+
+    #[test]
+    fn select_all_selects_every_item_of_the_group_only() {
+        let mut d = disk();
+        d.selected.insert(act("a"));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, true));
+        assert_eq!(d.selected, HashSet::from([act("a"), act("b"), act("c")]));
+    }
+
+    #[test]
+    fn deselect_all_clears_the_group_and_keeps_other_groups() {
+        let mut d = disk();
+        d.selected.extend([act("a"), act("c"), act("x")]);
+        let _ = d.update(DiskMsg::SelectAll(GroupId::BuildOutputs, false));
+        assert_eq!(d.selected, HashSet::from([act("x")]));
+    }
+
+    #[test]
+    fn select_all_of_an_unknown_group_does_nothing() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::SelectAll(GroupId::Trash, true));
+        assert!(d.selected.is_empty());
     }
 }
