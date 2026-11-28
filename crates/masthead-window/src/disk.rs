@@ -56,6 +56,8 @@ pub enum DiskMsg {
     Toggle(Action, bool),
     SelectStale(GroupId),
     ClearGroup(GroupId),
+    /// Select or deselect every item in the group, including collapsed ones.
+    SelectAll(GroupId, bool),
     Expand(GroupId),
     AskClean(GroupId),
     Confirm,
@@ -322,6 +324,16 @@ impl Disk {
                     self.selected.remove(&a);
                 }
             }
+            DiskMsg::SelectAll(g, on) => {
+                let ids: Vec<Action> = self.all_groups().filter(|x| x.id == g).flat_map(|x| &x.items).map(|i| i.action.clone()).collect();
+                if on {
+                    self.selected.extend(ids);
+                } else {
+                    for a in ids {
+                        self.selected.remove(&a);
+                    }
+                }
+            }
             DiskMsg::Expand(g) => {
                 if !self.expanded.remove(&g) {
                     self.expanded.insert(g);
@@ -515,5 +527,49 @@ impl Disk {
         self.cache_paths.remove(p);
         self.map_cache.clear();
         had
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use masthead_disk::findings::Item;
+
+    fn group(id: GroupId, names: &[&str]) -> Group {
+        let items =
+            names.iter().map(|n| Item { title: (*n).into(), detail: String::new(), size: 1, stale: false, action: vol(n) }).collect();
+        Group { id, title: "t", about: String::new(), items }
+    }
+
+    fn disk() -> Disk {
+        Disk { groups: vec![group(GroupId::AppCaches, &["a", "b", "c"]), group(GroupId::Trash, &["x"])], ..Disk::default() }
+    }
+
+    fn vol(n: &str) -> Action {
+        Action::DockerVolume(n.into())
+    }
+
+    #[test]
+    fn select_all_selects_every_item_in_group_only() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::Toggle(vol("a"), true));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::AppCaches, true));
+        assert_eq!(d.selected, HashSet::from([vol("a"), vol("b"), vol("c")]));
+    }
+
+    #[test]
+    fn deselect_all_clears_group_and_keeps_other_groups() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::SelectAll(GroupId::AppCaches, true));
+        let _ = d.update(DiskMsg::Toggle(vol("x"), true));
+        let _ = d.update(DiskMsg::SelectAll(GroupId::AppCaches, false));
+        assert_eq!(d.selected, HashSet::from([vol("x")]));
+    }
+
+    #[test]
+    fn select_all_unknown_group_is_noop() {
+        let mut d = disk();
+        let _ = d.update(DiskMsg::SelectAll(GroupId::Downloads, true));
+        assert!(d.selected.is_empty());
     }
 }
