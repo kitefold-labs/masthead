@@ -358,6 +358,14 @@ fn group<'a>(app: &'a App, g: &'a Group) -> El<'a> {
 
     let expanded = d.expanded.contains(&g.id);
     let mut rows = column![].spacing(0);
+    if !chosen.is_empty() {
+        let id = g.id;
+        let all = cosmic::iced::widget::checkbox(chosen.len() == g.items.len())
+            .label("All")
+            .on_toggle(move |v| msg(DiskMsg::SelectAll(id, v)))
+            .size(15);
+        rows = rows.push(column![container(all).padding([7, 0]), swatch(p.border, Length::Fill, 1.0, 0.0)]);
+    }
     for i in g.items.iter().take(if expanded { usize::MAX } else { COLLAPSED_ROWS }) {
         let on = d.selected.contains(&i.action);
         let action = i.action.clone();
